@@ -1,0 +1,33 @@
+extends layout
+
+block content
+    .container.mx-auto.mt-6
+        .bg-gray-700.p-6.rounded-lg.shadow-lg
+            h2.text-lg.font-bold.mb-4 Rider List
+            table.w-full.text-left.table-auto
+                thead
+                    tr
+                        th.border.px-4.py-2 Name
+                        th.border.px-4.py-2 Seats Reserved
+                        th.border.px-4.py-2 Current Balance
+                        th.border.px-4.py-2 Actions
+                tbody
+                    each rider in riders
+                        tr
+                            td.border.px-4.py-2
+                                a(href="/edit-rider/" + rider.id)= rider.name
+                            td.border.px-4.py-2= rider.seats
+                            td.border.px-4.py-2= rider.balance
+                            td.border.px-4.py-2
+                                button.rounded-md.bg-gray-500.text-white.px-4.py-2(onclick="location.href='/rider/" + rider.id + "/payments'") View Payments
+
+            .mt-6.flex.justify-between
+                h2.text-lg.font-bold Total Funds
+                .flex.flex-col.justify-between.items-center
+                    div
+                        | Cost of Rental: #{COST_OF_RENTAL}
+                    div
+                        | Total Collected: #{TOTAL_COLLECTED}
+                    div
+                        | Remaining: #{REMAINING_FUNDS}
+                button(onclick="location.href='/add-rider'" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Add Rider

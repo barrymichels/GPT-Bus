@@ -1,0 +1,21 @@
+extends layout
+
+block content
+  .flex.justify-center.items-center.h-screen
+    .bg-gray-700.p-6.rounded-lg.shadow-lg
+      form(method='post', action='/add-rider')
+        .mb-4
+          label(for='name').block.text-sm.font-bold.mb-2 Name
+          input#name(type='text', name='name', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='email').block.text-sm.font-bold.mb-2 Email
+          input#email(type='email', name='email', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='phone').block.text-sm.font-bold.mb-2 Phone
+          input#phone(type='tel', name='phone', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='seats').block.text-sm.font-bold.mb-2 Number of Seats
+          input#seats(type='number', name='seats', min='1', value='1', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .flex.items-center.justify-between
+          button(type='submit', class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Add Rider
+          a(href='/dashboard', class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Cancel

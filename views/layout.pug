@@ -1,0 +1,33 @@
+doctype html
+html(lang="en")
+    head
+        title Bus Rental App
+        meta(name="viewport", content="width=device-width, initial-scale=1.0, user-scalable=no")
+        link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css")
+        script(src="https://cdn.tailwindcss.com")
+    body.bg-gray-800.text-white
+        header.flex.justify-between.items-center.p-4.bg-gray-900
+            a(href="/dashboard")
+                h1.text-xl.font-bold Bus Rental Dashboard
+            div
+                div.inline-block.relative
+                    button(class="dropdown-btn bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline")
+                        | Menu
+                    ul.dropdown-menu.absolute.hidden.text-gray-700.pt-1
+                        li.item
+                            a.text-sm.py-2.px-4.block.whitespace-no-wrap(href='/add-user') Add User
+                        li.item
+                            a.text-sm.py-2.px-4.block.whitespace-no-wrap(href='/change-password') Change Password
+                        li.item
+                            a.text-sm.py-2.px-4.block.whitespace-no-wrap(href='/logout') Logout
+        block content
+
+    script.
+        document.querySelectorAll('.dropdown-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const dropdownMenu = button.nextElementSibling;
+                dropdownMenu.classList.toggle('hidden');
+                dropdownMenu.style.zIndex = "9999";
+                dropdownMenu.style.backgroundColor = "white";
+            });
+        });

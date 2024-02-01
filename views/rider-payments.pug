@@ -1,0 +1,23 @@
+extends layout
+
+block content
+  .container.mx-auto.p-4.bg-gray-700.rounded-lg.shadow-lg.mt-6
+    .mb-6
+      h2.text-xl.font-bold= 'Payments for ' + rider.name
+    .mb-6
+      button(onclick="location.href='/add-payment/" + rider.id + "'" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2") Add Payment
+    table.w-full.text-left.table-auto
+      thead
+        tr
+          th.border.px-4.py-2 Date
+          th.border.px-4.py-2 Amount
+          th.border.px-4.py-2 Actions
+      tbody
+        each payment in payments
+          tr
+            td.border.px-4.py-2
+              a(href='/edit-payment/' + payment.id)= payment.date
+            td.border.px-4.py-2= '$' + payment.amount
+            td.border.px-4.py-2
+              form.inline(method='post', action='/delete-payment/' + payment.id, onsubmit="return confirm('Are you sure you want to delete this payment?');")
+                button(type="submit" class="rounded-md bg-gray-500 px-4 py-2 text-red-500 hover:text-red-800") Delete
