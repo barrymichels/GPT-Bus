@@ -113,6 +113,7 @@ app.get("/dashboard", (req, res) => {
         FROM riders
         LEFT JOIN payments ON riders.id = payments.rider_id
         GROUP BY riders.id
+        ORDER BY riders.name ASC
     `,
         [],
         (err, riders) => {
