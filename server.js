@@ -321,12 +321,10 @@ app.post("/add-payment/:riderId", (req, res) => {
                 (err, payments) => {
                     if (err) throw err;
                     const totalPayments = payments.reduce(
-                        (total, payment) => total + payment.amount,
+                        (total, payment) => total + parseFloat(payment.amount),
                         0
                     );
-                    const currentBalance =
-                        parseFloat(rider.balance) -
-                        (parseFloat(totalPayments) + parseFloat(amount));
+                    const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
                     db.run(
                         "INSERT INTO payments (rider_id, date, amount) VALUES (?, ?, ?)",
                         [req.params.riderId, date, amount],
@@ -349,9 +347,7 @@ app.post("/add-payment/:riderId", (req, res) => {
                             const riderEmail =
                                 rider.email || process.env.EMAIL_USER;
 
-                            const formattedAmount = parseFloat(
-                                amount
-                            ).toLocaleString("en-US", {
+                            const formattedAmount = parseFloat(amount).toLocaleString("en-US", {
                                 style: "currency",
                                 currency: "USD",
                             });
@@ -402,7 +398,7 @@ app.post("/add-payment/:riderId", (req, res) => {
                                             </tbody>
                                         </table>
                                         <div style="margin-top:20px;text-align:right">
-                                            <p>Amount Paid: ${formattedAmount}</p>
+                                            <p>Amount Paid to Date: ${formattedCurrentBalance}</p>
                                         </div>
                                         <div style="text-align:center;margin-top:40px">
                                             <p>Thank you!</p>
