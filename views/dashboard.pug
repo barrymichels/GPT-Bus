@@ -9,7 +9,7 @@ block content
                     tr
                         th.border.px-4.py-2 Name
                         th.border.px-4.py-2 Seats Reserved
-                        th.border.px-4.py-2 Current Balance
+                        th.border.px-4.py-2 Collected
                         th.border.px-4.py-2 Actions
                 tbody
                     each rider in riders
@@ -17,7 +17,7 @@ block content
                             td.border.px-4.py-2
                                 a(href="/edit-rider/" + rider.id)= rider.name
                             td.border.px-4.py-2= rider.seats
-                            td.border.px-4.py-2= rider.balance
+                            td.border.px-4.py-2= rider.collected
                             td.border.px-4.py-2
                                 button.rounded-md.bg-gray-500.text-white.px-4.py-2(onclick="location.href='/rider/" + rider.id + "/payments'") View Payments
 

@@ -124,10 +124,12 @@ app.get("/dashboard", (req, res) => {
             );
             const REMAINING_FUNDS = COST_OF_RENTAL - TOTAL_COLLECTED;
             riders.forEach((rider) => {
-                rider.balance = rider.balance.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                });
+                rider.collected = rider.total_payments
+                    ? rider.total_payments.toLocaleString("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                      })
+                    : "$0.00";
             });
             res.render("dashboard", {
                 riders,
@@ -360,6 +362,21 @@ app.post("/add-payment/:riderId", (req, res) => {
                                     currency: "USD",
                                 });
 
+                            const paymentTable = payments
+                                .map(
+                                    (payment) =>
+                                        `<tr>
+                                            <td style="border:1px solid rgb(221,221,221);padding:8px">${payment.date}</td>
+                                            <td style="border:1px solid rgb(221,221,221);padding:8px">${parseFloat(
+                                                payment.amount
+                                            ).toLocaleString("en-US", {
+                                                style: "currency",
+                                                currency: "USD",
+                                            })}</td>
+                                        </tr>`
+                                )
+                                .join("");
+
                             const mailOptions = {
                                 from: process.env.EMAIL_USER,
                                 to: riderEmail,
@@ -372,18 +389,21 @@ app.post("/add-payment/:riderId", (req, res) => {
                                             <p>Date: ${date}</p>
                                         </div>
                                         <table style="width:100%;border-collapse:collapse;margin-top:20px">
-                                            <tbody><tr>
-                                                <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Description</th>
-                                                <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Price</th>
-                                            </tr>
-                                            <tr>
-                                                <td style="border:1px solid rgb(221,221,221);padding:8px">Regional Convention Bus Transport</td>
-                                                <td style="border:1px solid rgb(221,221,221);padding:8px">${formattedAmount}</td>
-                                            </tr></tbody>
+                                            <tbody>
+                                                <tr>
+                                                    <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Date</th>
+                                                    <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Amount</th>
+                                                </tr>
+                                                ${paymentTable}
+                                                <tr>
+                                                    <td style="border:1px solid rgb(221,221,221);padding:8px">${date}</td>
+                                                    <td style="border:1px solid rgb(221,221,221);padding:8px">${formattedAmount}</td>
+                                                </tr>
+                                            </tbody>
                                         </table>
                                         <div style="margin-top:20px;text-align:right">
                                             <p>Amount Paid: ${formattedAmount}</p>
-                                            <p>Current Amount Due: ${formattedCurrentBalance}</p>
+                                            <p>Current Balance: ${formattedCurrentBalance}</p>
                                         </div>
                                         <div style="text-align:center;margin-top:40px">
                                             <p>Thank you!</p>
