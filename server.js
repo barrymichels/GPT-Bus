@@ -403,7 +403,6 @@ app.post("/add-payment/:riderId", (req, res) => {
                                         </table>
                                         <div style="margin-top:20px;text-align:right">
                                             <p>Amount Paid: ${formattedAmount}</p>
-                                            <p>Current Balance: ${formattedCurrentBalance}</p>
                                         </div>
                                         <div style="text-align:center;margin-top:40px">
                                             <p>Thank you!</p>
