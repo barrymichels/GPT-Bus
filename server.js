@@ -1,3 +1,7 @@
+// Main server configuration file for a bus rental payment tracking system
+// This application manages riders, payments, and user authentication
+// Environment variables are loaded from .env file for configuration
+
 require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
@@ -9,15 +13,21 @@ const sqlite3 = require("sqlite3");
 const path = require("path");
 const nodemailer = require("nodemailer");
 
+// Initialize Express app and SQLite database connection
 const app = express();
 const db = new sqlite3.Database("./db/database.db");
 
-const COST_OF_RENTAL = process.env.COST_OF_RENTAL || 5000;
-const COST_PER_SEAT = process.env.COST_PER_SEAT || 130;
+// Constants for business logic - can be overridden by environment variables
+const COST_OF_RENTAL = process.env.COST_OF_RENTAL || 5000;  // Total cost to rent the bus
+const COST_PER_SEAT = process.env.COST_PER_SEAT || 130;     // Cost per seat for each rider
 
-// Set up passport
+// Passport authentication configuration
+// Uses local strategy with username/password stored in SQLite
+// Passwords are hashed using bcrypt for security
 passport.use(
     new LocalStrategy((username, password, done) => {
+        // Query database for user with matching username
+        // Compare password hash using bcrypt
         db.get(
             "SELECT id, username, password FROM users WHERE username = ?",
             [username],
@@ -42,10 +52,12 @@ passport.use(
     })
 );
 
+// Serialize user for the session - stores only user ID in session
 passport.serializeUser((user, done) => {
     done(null, user.id);
 });
 
+// Deserialize user from session - retrieves full user object using ID
 passport.deserializeUser((id, done) => {
     db.get("SELECT id, username FROM users WHERE id = ?", [id], (err, row) => {
         if (!row) return done(null, false);
@@ -53,58 +65,70 @@ passport.deserializeUser((id, done) => {
     });
 });
 
-// Middleware
+// Express middleware configuration
+// - Enables parsing of URL-encoded bodies and JSON
+// - Sets up session handling with SQLite storage
+// - Initializes passport authentication
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(
     session({
-        store: new SQLiteStore({
+        store: new SQLiteStore({  // Store sessions in SQLite database
             db: "./db/database.db",
             table: "sessions",
         }),
-        secret: process.env.SESSION_SECRET || "my secret",
-        resave: false,
-        saveUninitialized: false,
-        cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week
+        secret: process.env.SESSION_SECRET || "my secret",  // Secret used to sign session ID cookie
+        resave: false,  // Don't save session if unmodified
+        saveUninitialized: false,  // Don't create session until something stored
+        cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }, // Session expires in 1 week
     })
 );
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Set up Pug
+// View engine setup using Pug templating
 app.set("view engine", "pug");
 app.set("views", "./views");
 
-// Static files
+// Serve static files from public directory
 app.use(express.static(path.join(__dirname, "public")));
 
-// Routes
+// Authentication Routes
+// GET / - Redirects to dashboard
 app.get("/", (req, res) => {
     res.redirect("/dashboard");
 });
 
+// Login routes - handles both display and processing of login form
 app.get("/login", (req, res) => {
     res.render("login");
 });
 
+// Process login form submission using passport authentication
 app.post(
     "/login",
     passport.authenticate("local", {
-        successRedirect: "/dashboard",
-        failureRedirect: "/login",
+        successRedirect: "/dashboard",  // Redirect to dashboard on success
+        failureRedirect: "/login",      // Return to login page on failure
     })
 );
 
+// Logout route - destroys session and redirects to login
 app.get("/logout", (req, res) => {
     req.logout(() => {
         res.redirect("/login");
     });
 });
 
+// Dashboard route - Main application view
+// Shows all riders and their payment status
+// Calculates total collections and remaining funds
 app.get("/dashboard", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
+    // Complex SQL query to get riders and their payment totals
+    // Calculates remaining balance for each rider
     db.all(
         `
         SELECT riders.*, 
@@ -118,11 +142,13 @@ app.get("/dashboard", (req, res) => {
         [],
         (err, riders) => {
             if (err) throw err;
+            // Calculate financial summaries
             const TOTAL_COLLECTED = riders.reduce(
                 (total, rider) => total + rider.total_payments,
                 0
             );
             const REMAINING_FUNDS = COST_OF_RENTAL - TOTAL_COLLECTED;
+            // Format currency values for display
             riders.forEach((rider) => {
                 rider.collected = rider.total_payments
                     ? rider.total_payments.toLocaleString("en-US", {
@@ -150,7 +176,8 @@ app.get("/dashboard", (req, res) => {
     );
 });
 
-// Additional routes for user management
+// User Management Routes
+// Change password functionality for logged-in users
 app.get("/change-password", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -158,6 +185,8 @@ app.get("/change-password", (req, res) => {
     res.render("change-password");
 });
 
+// Process password change request
+// Hashes new password before storing in database
 app.post("/change-password", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -176,6 +205,7 @@ app.post("/change-password", (req, res) => {
     });
 });
 
+// Add new user form display
 app.get("/add-user", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -183,6 +213,8 @@ app.get("/add-user", (req, res) => {
     res.render("add-user");
 });
 
+// Process new user creation
+// Hashes password and stores user in database
 app.post("/add-user", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -201,7 +233,8 @@ app.post("/add-user", (req, res) => {
     });
 });
 
-// Routes for riders and payments
+// Rider Management Routes
+// Display form to add new rider
 app.get("/add-rider", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -209,12 +242,14 @@ app.get("/add-rider", (req, res) => {
     res.render("add-rider");
 });
 
+// Process new rider creation
+// Calculates initial balance based on number of seats
 app.post("/add-rider", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
     const { name, email, phone, seats, street, city, state, zip, instructions_sent } = req.body;
-    const balance = seats * COST_PER_SEAT;
+    const balance = seats * COST_PER_SEAT;  // Calculate total cost based on seats
     db.run(
         "INSERT INTO riders (name, email, phone, seats, balance, street, city, state, zip, instructions_sent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0],
@@ -225,6 +260,7 @@ app.post("/add-rider", (req, res) => {
     );
 });
 
+// Edit existing rider information
 app.get("/edit-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -239,6 +275,7 @@ app.get("/edit-rider/:id", (req, res) => {
     );
 });
 
+// Process rider information updates
 app.post("/edit-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -254,17 +291,19 @@ app.post("/edit-rider/:id", (req, res) => {
     );
 });
 
+// Delete rider if they have no payments
 app.get("/delete-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
+    // Check if rider has any payments before deletion
     db.get(
         "SELECT COUNT(*) AS paymentCount FROM payments WHERE rider_id = ?",
         [req.params.id],
         (err, result) => {
             if (err) throw err;
             if (result.paymentCount > 0) {
-                return res.redirect("/dashboard");
+                return res.redirect("/dashboard");  // Can't delete if payments exist
             }
             db.run(
                 "DELETE FROM riders WHERE id = ?",
@@ -277,10 +316,14 @@ app.get("/delete-rider/:id", (req, res) => {
         }
     );
 });
+
+// Payment Management Routes
+// View payment history for a specific rider
 app.get("/rider/:id/payments", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
+    // Get rider details and their payment history
     db.get(
         "SELECT * FROM riders WHERE id = ?",
         [req.params.id],
@@ -298,6 +341,7 @@ app.get("/rider/:id/payments", (req, res) => {
     );
 });
 
+// Display form to add new payment
 app.get("/add-payment/:riderId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -305,11 +349,13 @@ app.get("/add-payment/:riderId", (req, res) => {
     res.render("add-payment", { riderId: req.params.riderId });
 });
 
+// Process new payment and send email receipt
 app.post("/add-payment/:riderId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
     const { date, amount } = req.body;
+    // Get rider information and payment history
     db.get(
         "SELECT * FROM riders WHERE id = ?",
         [req.params.riderId],
@@ -320,17 +366,21 @@ app.post("/add-payment/:riderId", (req, res) => {
                 [req.params.riderId],
                 (err, payments) => {
                     if (err) throw err;
+                    // Calculate total payments including new payment
                     const totalPayments = payments.reduce(
                         (total, payment) => total + parseFloat(payment.amount),
                         0
                     );
                     const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
+                    
+                    // Insert new payment record
                     db.run(
                         "INSERT INTO payments (rider_id, date, amount) VALUES (?, ?, ?)",
                         [req.params.riderId, date, amount],
                         (err) => {
                             if (err) throw err;
-                            // Send email to the rider with the receipt
+                            
+                            // Configure email transport
                             const transporter = nodemailer.createTransport({
                                 host: process.env.EMAIL_HOST,
                                 port: process.env.EMAIL_PORT,
@@ -344,20 +394,18 @@ app.post("/add-payment/:riderId", (req, res) => {
                                 },
                             });
 
-                            const riderEmail =
-                                rider.email || process.env.EMAIL_USER;
-
+                            // Format payment amounts for email
+                            const riderEmail = rider.email || process.env.EMAIL_USER;
                             const formattedAmount = parseFloat(amount).toLocaleString("en-US", {
                                 style: "currency",
                                 currency: "USD",
                             });
+                            const formattedCurrentBalance = currentBalance.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                            });
 
-                            const formattedCurrentBalance =
-                                currentBalance.toLocaleString("en-US", {
-                                    style: "currency",
-                                    currency: "USD",
-                                });
-
+                            // Generate HTML table of payment history
                             const paymentTable = payments
                                 .map(
                                     (payment) =>
@@ -373,6 +421,7 @@ app.post("/add-payment/:riderId", (req, res) => {
                                 )
                                 .join("");
 
+                            // Configure and send email receipt
                             const mailOptions = {
                                 from: process.env.EMAIL_USER,
                                 to: riderEmail,
@@ -407,6 +456,7 @@ app.post("/add-payment/:riderId", (req, res) => {
                                 `,
                             };
 
+                            // Send email and handle response
                             transporter.sendMail(mailOptions, (error, info) => {
                                 if (error) {
                                     console.log(error);
@@ -426,6 +476,7 @@ app.post("/add-payment/:riderId", (req, res) => {
     );
 });
 
+// Edit existing payment
 app.get("/edit-payment/:paymentId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -440,6 +491,7 @@ app.get("/edit-payment/:paymentId", (req, res) => {
     );
 });
 
+// Process payment updates
 app.post("/edit-payment/:paymentId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
@@ -450,7 +502,7 @@ app.post("/edit-payment/:paymentId", (req, res) => {
         [date, amount, req.params.paymentId],
         (err) => {
             if (err) throw err;
-            // Redirect to the rider's payment history page, need to fetch riderId from paymentId
+            // Get rider ID to redirect back to payment history
             db.get(
                 "SELECT rider_id FROM payments WHERE id = ?",
                 [req.params.paymentId],
@@ -463,10 +515,12 @@ app.post("/edit-payment/:paymentId", (req, res) => {
     );
 });
 
+// Delete payment record
 app.post("/delete-payment/:paymentId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
+    // Get rider ID before deleting payment for redirect
     db.get(
         "SELECT rider_id FROM payments WHERE id = ?",
         [req.params.paymentId],
@@ -478,7 +532,6 @@ app.post("/delete-payment/:paymentId", (req, res) => {
                 [req.params.paymentId],
                 (err) => {
                     if (err) throw err;
-                    // Redirect back to the rider's payment history
                     res.redirect(`/rider/${riderId}/payments`);
                 }
             );
@@ -486,12 +539,13 @@ app.post("/delete-payment/:paymentId", (req, res) => {
     );
 });
 
-// Ensure all routes are correctly implemented and connected to the corresponding Pug templates.
-
-// Initialize database and start server
+// Database Initialization and Server Startup
+// Creates necessary tables if they don't exist
+// Handles database schema migrations for new columns
+// Creates default admin user if none exists
 const initDbAndStartServer = () => {
     db.serialize(() => {
-        // First check if the columns exist
+        // Check existing table schema and add new columns if needed
         db.all("PRAGMA table_info(riders)", [], (err, rows) => {
             if (err) {
                 console.error('Error checking table schema:', err);
@@ -503,7 +557,7 @@ const initDbAndStartServer = () => {
                 return rows.some(row => row.name === columnName);
             };
 
-            // Add each column individually if it doesn't exist
+            // Add new columns if they don't exist
             const migrations = [
                 !columnExists('street') ? "ALTER TABLE riders ADD COLUMN street TEXT DEFAULT '';" : null,
                 !columnExists('city') ? "ALTER TABLE riders ADD COLUMN city TEXT DEFAULT '';" : null,
@@ -520,6 +574,7 @@ const initDbAndStartServer = () => {
             });
         });
 
+        // Create core database tables
         db.run(
             "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT)"
         );
@@ -529,11 +584,11 @@ const initDbAndStartServer = () => {
         db.run(
             "CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, rider_id INTEGER, date TEXT, amount INTEGER)"
         );
-
         db.run(
             "CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, session TEXT, expire INTEGER)"
         );
 
+        // Create default admin user with password 'password123'
         bcrypt.hash("password123", 10, (err, hash) => {
             if (err) throw err;
             db.run(
@@ -542,6 +597,7 @@ const initDbAndStartServer = () => {
             );
         });
 
+        // Start the server
         app.listen(3000, () => {
             console.log("Server running on http://localhost:3000");
         });
