@@ -14,8 +14,24 @@ block content
           label(for='phone').block.text-sm.font-bold.mb-2 Phone
           input#phone(type='tel', name='phone', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
+          label(for='street').block.text-sm.font-bold.mb-2 Street Address
+          input#street(type='text', name='street', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='city').block.text-sm.font-bold.mb-2 City
+          input#city(type='text', name='city', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='state').block.text-sm.font-bold.mb-2 State
+          input#state(type='text', name='state', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(for='zip').block.text-sm.font-bold.mb-2 Zip Code
+          input#zip(type='text', name='zip', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
           label(for='seats').block.text-sm.font-bold.mb-2 Number of Seats
           input#seats(type='number', name='seats', min='1', value='1', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+        .mb-4
+          label(class="flex items-center space-x-2")
+            input(type='checkbox', name='instructions_sent', class="form-checkbox h-5 w-5 text-blue-500")
+            span.text-sm.font-bold Instructions Sent
         .flex.items-center.justify-between
           button(type='submit', class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Add Rider
           a(href='/dashboard', class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Cancel

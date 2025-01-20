@@ -213,11 +213,11 @@ app.post("/add-rider", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    const { name, email, phone, seats } = req.body;
-    const balance = seats * COST_PER_SEAT; // Assuming COST_PER_SEAT is defined globally
+    const { name, email, phone, seats, street, city, state, zip, instructions_sent } = req.body;
+    const balance = seats * COST_PER_SEAT;
     db.run(
-        "INSERT INTO riders (name, email, phone, seats, balance) VALUES (?, ?, ?, ?, ?)",
-        [name, email, phone, seats, balance],
+        "INSERT INTO riders (name, email, phone, seats, balance, street, city, state, zip, instructions_sent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0],
         (err) => {
             if (err) throw err;
             res.redirect("/dashboard");
@@ -243,10 +243,10 @@ app.post("/edit-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    const { name, email, phone, seats, balance } = req.body;
+    const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent } = req.body;
     db.run(
-        "UPDATE riders SET name = ?, email = ?, phone = ?, seats = ?, balance = ? WHERE id = ?",
-        [name, email, phone, seats, balance, req.params.id],
+        "UPDATE riders SET name = ?, email = ?, phone = ?, seats = ?, balance = ?, street = ?, city = ?, state = ?, zip = ?, instructions_sent = ? WHERE id = ?",
+        [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0, req.params.id],
         (err) => {
             if (err) throw err;
             res.redirect("/dashboard");
@@ -491,6 +491,35 @@ app.post("/delete-payment/:paymentId", (req, res) => {
 // Initialize database and start server
 const initDbAndStartServer = () => {
     db.serialize(() => {
+        // First check if the columns exist
+        db.all("PRAGMA table_info(riders)", [], (err, rows) => {
+            if (err) {
+                console.error('Error checking table schema:', err);
+                return;
+            }
+
+            // Helper function to check if column exists
+            const columnExists = (columnName) => {
+                return rows.some(row => row.name === columnName);
+            };
+
+            // Add each column individually if it doesn't exist
+            const migrations = [
+                !columnExists('street') ? "ALTER TABLE riders ADD COLUMN street TEXT DEFAULT '';" : null,
+                !columnExists('city') ? "ALTER TABLE riders ADD COLUMN city TEXT DEFAULT '';" : null,
+                !columnExists('state') ? "ALTER TABLE riders ADD COLUMN state TEXT DEFAULT '';" : null,
+                !columnExists('zip') ? "ALTER TABLE riders ADD COLUMN zip TEXT DEFAULT '';" : null,
+                !columnExists('instructions_sent') ? "ALTER TABLE riders ADD COLUMN instructions_sent BOOLEAN DEFAULT 0;" : null
+            ].filter(Boolean);
+
+            // Execute migrations sequentially
+            migrations.forEach(migration => {
+                db.run(migration, (err) => {
+                    if (err) console.error('Migration error:', err);
+                });
+            });
+        });
+
         db.run(
             "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT)"
         );

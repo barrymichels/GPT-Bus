@@ -15,7 +15,10 @@ block content
                     each rider in riders
                         tr
                             td.border.px-4.py-2
-                                a(href="/edit-rider/" + rider.id)= rider.name
+                                .flex.items-center.space-x-2
+                                    a(href="/edit-rider/" + rider.id)= rider.name
+                                    if rider.instructions_sent === 1
+                                        span.text-green-500.ml-2 ✓
                             td.border.px-4.py-2= rider.seats
                             td.border.px-4.py-2= rider.collected
                             td.border.px-4.py-2
