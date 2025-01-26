@@ -20,6 +20,7 @@ const db = new sqlite3.Database("./db/database.db");
 // Constants for business logic - can be overridden by environment variables
 const COST_OF_RENTAL = process.env.COST_OF_RENTAL || 5000;  // Total cost to rent the bus
 const COST_PER_SEAT = process.env.COST_PER_SEAT || 130;     // Cost per seat for each rider
+const TOTAL_SEATS = process.env.TOTAL_SEATS || 50;          // Total seats available on the bus
 
 // Passport authentication configuration
 // Uses local strategy with username/password stored in SQLite
@@ -148,6 +149,12 @@ app.get("/dashboard", (req, res) => {
                 0
             );
             const REMAINING_FUNDS = COST_OF_RENTAL - TOTAL_COLLECTED;
+            // Calculate seat statistics
+            const RESERVED_SEATS = riders.reduce(
+                (total, rider) => total + (rider.seats || 0),
+                0
+            );
+            const REMAINING_SEATS = TOTAL_SEATS - RESERVED_SEATS;
             // Format currency values for display
             riders.forEach((rider) => {
                 rider.collected = rider.total_payments
@@ -171,6 +178,9 @@ app.get("/dashboard", (req, res) => {
                     style: "currency",
                     currency: "USD",
                 }),
+                RESERVED_SEATS,
+                REMAINING_SEATS,
+                TOTAL_SEATS,
             });
         }
     );
