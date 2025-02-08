@@ -12,15 +12,11 @@ const bcrypt = require("bcrypt");
 const sqlite3 = require("sqlite3");
 const path = require("path");
 const nodemailer = require("nodemailer");
+const fs = require('fs');
 
 // Initialize Express app and SQLite database connection
 const app = express();
 const db = new sqlite3.Database("./db/database.db");
-
-// Constants for business logic - can be overridden by environment variables
-const COST_OF_RENTAL = process.env.COST_OF_RENTAL || 5000;  // Total cost to rent the bus
-const COST_PER_SEAT = process.env.COST_PER_SEAT || 130;     // Cost per seat for each rider
-const TOTAL_SEATS = process.env.TOTAL_SEATS || 50;          // Total seats available on the bus
 
 // Passport authentication configuration
 // Uses local strategy with username/password stored in SQLite
@@ -128,62 +124,81 @@ app.get("/dashboard", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    // Complex SQL query to get riders and their payment totals
-    // Calculates remaining balance for each rider
-    db.all(
-        `
-        SELECT riders.*, 
-        SUM(payments.amount) AS total_payments,
-        (riders.balance - COALESCE(SUM(payments.amount), 0)) AS balance
-        FROM riders
-        LEFT JOIN payments ON riders.id = payments.rider_id
-        GROUP BY riders.id
-        ORDER BY riders.name ASC
-    `,
-        [],
-        (err, riders) => {
-            if (err) throw err;
-            // Calculate financial summaries
-            const TOTAL_COLLECTED = riders.reduce(
-                (total, rider) => total + rider.total_payments,
-                0
-            );
-            const REMAINING_FUNDS = COST_OF_RENTAL - TOTAL_COLLECTED;
-            // Calculate seat statistics
-            const RESERVED_SEATS = riders.reduce(
-                (total, rider) => total + (rider.seats || 0),
-                0
-            );
-            const REMAINING_SEATS = TOTAL_SEATS - RESERVED_SEATS;
-            // Format currency values for display
-            riders.forEach((rider) => {
-                rider.collected = rider.total_payments
-                    ? rider.total_payments.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                      })
-                    : "$0.00";
+
+    // Get active trip first
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) {
+            // Check if there are any trips at all
+            db.get("SELECT COUNT(*) as count FROM trips", [], (err, result) => {
+                if (err) throw err;
+                if (result.count === 0) {
+                    // No trips exist, redirect to add trip page
+                    return res.redirect("/add-trip");
+                } else {
+                    // Trips exist but none active, redirect to trips page
+                    return res.redirect("/trips");
+                }
             });
-            res.render("dashboard", {
-                riders,
-                COST_OF_RENTAL: COST_OF_RENTAL.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                }),
-                TOTAL_COLLECTED: TOTAL_COLLECTED.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                }),
-                REMAINING_FUNDS: REMAINING_FUNDS.toLocaleString("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                }),
-                RESERVED_SEATS,
-                REMAINING_SEATS,
-                TOTAL_SEATS,
-            });
+            return;
         }
-    );
+
+        // Modified query to get riders and payments for active trip
+        db.all(
+            `SELECT r.*, tr.seats, tr.balance, tr.instructions_sent,
+            SUM(p.amount) AS total_payments,
+            (tr.balance - COALESCE(SUM(p.amount), 0)) AS balance
+            FROM riders r
+            INNER JOIN trip_riders tr ON r.id = tr.rider_id
+            LEFT JOIN payments p ON tr.trip_id = p.trip_id AND r.id = p.rider_id
+            WHERE tr.trip_id = ?
+            GROUP BY r.id
+            ORDER BY r.name ASC`,
+            [activeTrip.id],
+            (err, riders) => {
+                if (err) throw err;
+                // Calculate financial summaries
+                const TOTAL_COLLECTED = riders.reduce(
+                    (total, rider) => total + (rider.total_payments || 0),
+                    0
+                );
+                const REMAINING_FUNDS = activeTrip.cost_of_rental - TOTAL_COLLECTED;
+                const RESERVED_SEATS = riders.reduce(
+                    (total, rider) => total + (rider.seats || 0),
+                    0
+                );
+                const REMAINING_SEATS = activeTrip.total_seats - RESERVED_SEATS;
+
+                // Format currency values
+                riders.forEach((rider) => {
+                    rider.collected = (rider.total_payments || 0).toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                    });
+                });
+
+                res.render("dashboard", {
+                    riders,
+                    activeTrip,
+                    COST_OF_RENTAL: activeTrip.cost_of_rental.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                    }),
+                    TOTAL_COLLECTED: TOTAL_COLLECTED.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                    }),
+                    REMAINING_FUNDS: REMAINING_FUNDS.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                    }),
+                    RESERVED_SEATS,
+                    REMAINING_SEATS,
+                    TOTAL_SEATS: activeTrip.total_seats,
+                });
+            }
+        );
+    });
 });
 
 // User Management Routes
@@ -249,7 +264,25 @@ app.get("/add-rider", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    res.render("add-rider");
+
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) {
+            console.error('Database error:', err);
+            return res.render("add-rider", { error: "Database error occurred" });
+        }
+        
+        if (!activeTrip) {
+            return res.render("add-rider", { 
+                error: "No active trip selected. Please select a trip first.",
+                showTripLink: true
+            });
+        }
+        
+        res.render("add-rider", { 
+            activeTrip,
+            formTitle: `Add New Rider to ${activeTrip.name}`
+        });
+    });
 });
 
 // Process new rider creation
@@ -258,16 +291,35 @@ app.post("/add-rider", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    const { name, email, phone, seats, street, city, state, zip, instructions_sent } = req.body;
-    const balance = seats * COST_PER_SEAT;  // Calculate total cost based on seats
-    db.run(
-        "INSERT INTO riders (name, email, phone, seats, balance, street, city, state, zip, instructions_sent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0],
-        (err) => {
-            if (err) throw err;
-            res.redirect("/dashboard");
+
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) {
+            return res.redirect("/trips");
         }
-    );
+
+        const { name, email, phone, seats, street, city, state, zip } = req.body;
+        const balance = seats * activeTrip.cost_per_seat;
+
+        db.serialize(() => {
+            db.run(
+                "INSERT INTO riders (name, email, phone, street, city, state, zip) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [name, email, phone, street, city, state, zip],
+                function (err) {
+                    if (err) throw err;
+                    const riderId = this.lastID;
+                    db.run(
+                        "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
+                        [activeTrip.id, riderId, seats, balance],
+                        (err) => {
+                            if (err) throw err;
+                            res.redirect("/dashboard");
+                        }
+                    );
+                }
+            );
+        });
+    });
 });
 
 // Edit existing rider information
@@ -364,126 +416,133 @@ app.post("/add-payment/:riderId", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    const { date, amount } = req.body;
-    // Get rider information and payment history
-    db.get(
-        "SELECT * FROM riders WHERE id = ?",
-        [req.params.riderId],
-        (err, rider) => {
-            if (err) throw err;
-            db.all(
-                "SELECT * FROM payments WHERE rider_id = ?",
-                [req.params.riderId],
-                (err, payments) => {
-                    if (err) throw err;
-                    // Calculate total payments including new payment
-                    const totalPayments = payments.reduce(
-                        (total, payment) => total + parseFloat(payment.amount),
-                        0
-                    );
-                    const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
-                    
-                    // Insert new payment record
-                    db.run(
-                        "INSERT INTO payments (rider_id, date, amount) VALUES (?, ?, ?)",
-                        [req.params.riderId, date, amount],
-                        (err) => {
-                            if (err) throw err;
-                            
-                            // Configure email transport
-                            const transporter = nodemailer.createTransport({
-                                host: process.env.EMAIL_HOST,
-                                port: process.env.EMAIL_PORT,
-                                secure: false,
-                                auth: {
-                                    user: process.env.EMAIL_USER,
-                                    pass: process.env.EMAIL_PASS,
-                                },
-                                tls: {
-                                    ciphers: "SSLv3",
-                                },
-                            });
 
-                            // Format payment amounts for email
-                            const riderEmail = rider.email || process.env.EMAIL_USER;
-                            const formattedAmount = parseFloat(amount).toLocaleString("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                            });
-                            const formattedCurrentBalance = currentBalance.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                            });
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) {
+            return res.redirect("/trips");
+        }
 
-                            // Generate HTML table of payment history
-                            const paymentTable = payments
-                                .map(
-                                    (payment) =>
-                                        `<tr>
-                                            <td style="border:1px solid rgb(221,221,221);padding:8px">${payment.date}</td>
-                                            <td style="border:1px solid rgb(221,221,221);padding:8px">${parseFloat(
+        const { date, amount } = req.body;
+        // Add trip_id to payments table
+        db.run(
+            "INSERT INTO payments (rider_id, trip_id, date, amount) VALUES (?, ?, ?, ?)",
+            [req.params.riderId, activeTrip.id, date, amount],
+            (err) => {
+                if (err) throw err;
+                // Get rider information and payment history
+                db.get(
+                    "SELECT * FROM riders WHERE id = ?",
+                    [req.params.riderId],
+                    (err, rider) => {
+                        if (err) throw err;
+                        db.all(
+                            "SELECT * FROM payments WHERE rider_id = ?",
+                            [req.params.riderId],
+                            (err, payments) => {
+                                if (err) throw err;
+                                // Calculate total payments including new payment
+                                const totalPayments = payments.reduce(
+                                    (total, payment) => total + parseFloat(payment.amount),
+                                    0
+                                );
+                                const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
+
+                                // Configure email transport
+                                const transporter = nodemailer.createTransport({
+                                    host: process.env.EMAIL_HOST,
+                                    port: process.env.EMAIL_PORT,
+                                    secure: false,
+                                    auth: {
+                                        user: process.env.EMAIL_USER,
+                                        pass: process.env.EMAIL_PASS,
+                                    },
+                                    tls: {
+                                        ciphers: "SSLv3",
+                                    },
+                                });
+
+                                // Format payment amounts for email
+                                const riderEmail = rider.email || process.env.EMAIL_USER;
+                                const formattedAmount = parseFloat(amount).toLocaleString("en-US", {
+                                    style: "currency",
+                                    currency: "USD",
+                                });
+                                const formattedCurrentBalance = currentBalance.toLocaleString("en-US", {
+                                    style: "currency",
+                                    currency: "USD",
+                                });
+
+                                // Generate HTML table of payment history
+                                const paymentTable = payments
+                                    .map(
+                                        (payment) =>
+                                            `<tr>
+                                                <td style="border:1px solid rgb(221,221,221);padding:8px">${payment.date}</td>
+                                                <td style="border:1px solid rgb(221,221,221);padding:8px">${parseFloat(
                                                 payment.amount
                                             ).toLocaleString("en-US", {
                                                 style: "currency",
                                                 currency: "USD",
                                             })}</td>
-                                        </tr>`
-                                )
-                                .join("");
+                                            </tr>`
+                                    )
+                                    .join("");
 
-                            // Configure and send email receipt
-                            const mailOptions = {
-                                from: process.env.EMAIL_USER,
-                                to: riderEmail,
-                                subject: "Payment Receipt",
-                                html: `
-                                    <div style="width:80%;max-width:600px;margin:40px auto;padding:20px;border:1px solid rgb(221,221,221)">
-                                        <div>
-                                            <h2>Receipt</h2>
-                                            <p>Name: ${rider.name}</p>
-                                            <p>Date: ${date}</p>
+                                // Configure and send email receipt
+                                const mailOptions = {
+                                    from: process.env.EMAIL_USER,
+                                    to: riderEmail,
+                                    subject: "Payment Receipt",
+                                    html: `
+                                        <div style="width:80%;max-width:600px;margin:40px auto;padding:20px;border:1px solid rgb(221,221,221)">
+                                            <div>
+                                                <h2>Receipt</h2>
+                                                <p>Name: ${rider.name}</p>
+                                                <p>Date: ${date}</p>
+                                            </div>
+                                            <table style="width:100%;border-collapse:collapse;margin-top:20px">
+                                                <tbody>
+                                                    <tr>
+                                                        <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Date</th>
+                                                        <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Amount</th>
+                                                    </tr>
+                                                    ${paymentTable}
+                                                    <tr>
+                                                        <td style="border:1px solid rgb(221,221,221);padding:8px">${date}</td>
+                                                        <td style="border:1px solid rgb(221,221,221);padding:8px">${formattedAmount}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <div style="margin-top:20px;text-align:right">
+                                                <p>Amount Paid to Date: ${formattedCurrentBalance}</p>
+                                            </div>
+                                            <div style="text-align:center;margin-top:40px">
+                                                <p>Thank you!</p>
+                                            </div>
                                         </div>
-                                        <table style="width:100%;border-collapse:collapse;margin-top:20px">
-                                            <tbody>
-                                                <tr>
-                                                    <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Date</th>
-                                                    <th style="border:1px solid rgb(221,221,221);padding:8px;text-align:left">Amount</th>
-                                                </tr>
-                                                ${paymentTable}
-                                                <tr>
-                                                    <td style="border:1px solid rgb(221,221,221);padding:8px">${date}</td>
-                                                    <td style="border:1px solid rgb(221,221,221);padding:8px">${formattedAmount}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        <div style="margin-top:20px;text-align:right">
-                                            <p>Amount Paid to Date: ${formattedCurrentBalance}</p>
-                                        </div>
-                                        <div style="text-align:center;margin-top:40px">
-                                            <p>Thank you!</p>
-                                        </div>
-                                    </div>
-                                `,
-                            };
+                                    `,
+                                };
 
-                            // Send email and handle response
-                            transporter.sendMail(mailOptions, (error, info) => {
-                                if (error) {
-                                    console.log(error);
-                                } else {
-                                    console.log("Email sent: " + info.response);
-                                }
-                            });
+                                // Send email and handle response
+                                transporter.sendMail(mailOptions, (error, info) => {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
 
-                            res.redirect(
-                                `/rider/${req.params.riderId}/payments`
-                            );
-                        }
-                    );
-                }
-            );
-        }
-    );
+                                res.redirect(
+                                    `/rider/${req.params.riderId}/payments`
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
 });
 
 // Edit existing payment
@@ -553,65 +612,181 @@ app.post("/delete-payment/:paymentId", (req, res) => {
 // Creates necessary tables if they don't exist
 // Handles database schema migrations for new columns
 // Creates default admin user if none exists
-const initDbAndStartServer = () => {
-    db.serialize(() => {
-        // Check existing table schema and add new columns if needed
-        db.all("PRAGMA table_info(riders)", [], (err, rows) => {
-            if (err) {
-                console.error('Error checking table schema:', err);
-                return;
-            }
+const dbPath = "./db/database.db";
 
-            // Helper function to check if column exists
-            const columnExists = (columnName) => {
-                return rows.some(row => row.name === columnName);
-            };
+async function initDbAndStartServer() {
+    try {
+        // Create db directory if it doesn't exist
+        if (!fs.existsSync('./db')) {
+            fs.mkdirSync('./db');
+        }
 
-            // Add new columns if they don't exist
-            const migrations = [
-                !columnExists('street') ? "ALTER TABLE riders ADD COLUMN street TEXT DEFAULT '';" : null,
-                !columnExists('city') ? "ALTER TABLE riders ADD COLUMN city TEXT DEFAULT '';" : null,
-                !columnExists('state') ? "ALTER TABLE riders ADD COLUMN state TEXT DEFAULT '';" : null,
-                !columnExists('zip') ? "ALTER TABLE riders ADD COLUMN zip TEXT DEFAULT '';" : null,
-                !columnExists('instructions_sent') ? "ALTER TABLE riders ADD COLUMN instructions_sent BOOLEAN DEFAULT 0;" : null
-            ].filter(Boolean);
+        // Initialize database connection
+        global.db = new sqlite3.Database('./db/database.db');
 
-            // Execute migrations sequentially
-            migrations.forEach(migration => {
-                db.run(migration, (err) => {
-                    if (err) console.error('Migration error:', err);
-                });
+        db.serialize(() => {
+            // Enable foreign keys
+            db.run('PRAGMA foreign_keys = ON');
+
+            // Create tables only if they don't exist
+            console.log('Checking/creating database tables...');
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY,
+                    username TEXT UNIQUE,
+                    password TEXT
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS sessions (
+                    sid TEXT PRIMARY KEY,
+                    sess TEXT,
+                    expired INTEGER
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS riders (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    street TEXT DEFAULT '',
+                    city TEXT DEFAULT '',
+                    state TEXT DEFAULT '',
+                    zip TEXT DEFAULT ''
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS trips (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    start_date TEXT,
+                    end_date TEXT,
+                    cost_of_rental REAL,
+                    cost_per_seat REAL,
+                    total_seats INTEGER,
+                    is_active BOOLEAN DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS trip_riders (
+                    trip_id INTEGER,
+                    rider_id INTEGER,
+                    seats INTEGER,
+                    balance INTEGER,
+                    instructions_sent BOOLEAN DEFAULT 0,
+                    FOREIGN KEY(trip_id) REFERENCES trips(id),
+                    FOREIGN KEY(rider_id) REFERENCES riders(id),
+                    PRIMARY KEY(trip_id, rider_id)
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS payments (
+                    id INTEGER PRIMARY KEY,
+                    rider_id INTEGER,
+                    trip_id INTEGER,
+                    date TEXT,
+                    amount INTEGER,
+                    FOREIGN KEY(rider_id) REFERENCES riders(id),
+                    FOREIGN KEY(trip_id) REFERENCES trips(id)
+                )
+            `);
+
+            // Only create default admin user if no users exist
+            db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
+                if (err) {
+                    console.error('Error checking users table:', err);
+                    return;
+                }
+                if (row.count === 0) {
+                    console.log('Creating default admin user...');
+                    bcrypt.hash("password123", 10, (err, hash) => {
+                        if (err) {
+                            console.error('Error creating admin user:', err);
+                            return;
+                        }
+                        db.run(
+                            'INSERT INTO users (username, password) VALUES ("admin", ?)',
+                            [hash],
+                            (err) => {
+                                if (err) {
+                                    console.error('Error inserting admin user:', err);
+                                    return;
+                                }
+                                console.log('Default admin user created.');
+                            }
+                        );
+                    });
+                }
             });
-        });
-
-        // Create core database tables
-        db.run(
-            "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT)"
-        );
-        db.run(
-            "CREATE TABLE IF NOT EXISTS riders (id INTEGER PRIMARY KEY, name TEXT, email TEXT, phone TEXT, seats INTEGER, balance INTEGER)"
-        );
-        db.run(
-            "CREATE TABLE IF NOT EXISTS payments (id INTEGER PRIMARY KEY, rider_id INTEGER, date TEXT, amount INTEGER)"
-        );
-        db.run(
-            "CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, session TEXT, expire INTEGER)"
-        );
-
-        // Create default admin user with password 'password123'
-        bcrypt.hash("password123", 10, (err, hash) => {
-            if (err) throw err;
-            db.run(
-                'INSERT OR IGNORE INTO users (id, username, password) VALUES (1, "admin", ?)',
-                [hash]
-            );
         });
 
         // Start the server
         app.listen(3000, () => {
             console.log("Server running on http://localhost:3000");
         });
+
+    } catch (err) {
+        console.error('Failed to initialize database:', err);
+        process.exit(1);
+    }
+}
+
+// Add new routes for trip management
+// Display trips list
+app.get("/trips", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+    db.all("SELECT * FROM trips ORDER BY created_at DESC", [], (err, trips) => {
+        if (err) throw err;
+        res.render("trips", { trips });
     });
-};
+});
+
+// Add new trip form
+app.get("/add-trip", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+    res.render("add-trip");
+});
+
+// Process new trip creation
+app.post("/add-trip", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+    const { name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats } = req.body;
+    db.run(
+        "INSERT INTO trips (name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, start_date, end_date, parseFloat(cost_of_rental), parseFloat(cost_per_seat), total_seats],
+        (err) => {
+            if (err) throw err;
+            res.redirect("/trips");
+        }
+    );
+});
+
+// Set active trip
+app.post("/trip/:id/activate", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+    db.serialize(() => {
+        db.run("UPDATE trips SET is_active = 0");
+        db.run("UPDATE trips SET is_active = 1 WHERE id = ?", [req.params.id], (err) => {
+            if (err) throw err;
+            res.redirect("/trips");
+        });
+    });
+});
 
 initDbAndStartServer();

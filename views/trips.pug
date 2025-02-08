@@ -1,0 +1,42 @@
+extends layout
+
+block content
+  .container.mx-auto.px-4.py-8
+    .flex.justify-between.items-center.mb-8
+      h1.text-3xl.font-bold.text-white Bus Trips
+      a(href="/add-trip" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-colors")
+        i.fas.fa-plus.mr-2
+        | Add New Trip
+    
+    if trips && trips.length > 0
+      div(class="grid gap-6 md:grid-cols-2 lg:grid-cols-3")
+        each trip in trips
+          .bg-white.rounded-lg.shadow-lg.p-6
+            .flex.justify-between.items-start.mb-4
+              h2.text-xl.font-bold= trip.name
+              if trip.is_active
+                span.bg-green-500.text-white.text-sm.px-2.py-1.rounded Active
+            .space-y-2.text-gray-600
+              p
+                strong Start Date: 
+                | #{trip.start_date}
+              p
+                strong End Date: 
+                | #{trip.end_date}
+              p
+                strong Cost per Seat: 
+                | $#{trip.cost_per_seat}
+              p
+                strong Total Seats: 
+                | #{trip.total_seats}
+              p
+                strong Total Cost: 
+                | $#{trip.cost_of_rental}
+            
+            if !trip.is_active
+              form(action=`/trip/${trip.id}/activate` method="POST" class="mt-4")
+                button(type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors") Make Active
+    else
+      .text-center.text-white.py-8
+        p No trips found. Please add a new trip to get started.
+        a(href="/add-trip" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-colors") Add Your First Trip
