@@ -1,38 +1,88 @@
 extends layout
 
 block content
-    .container.mx-auto.mt-6
-        .bg-gray-700.p-6.rounded-lg.shadow-lg
-            h2.text-lg.font-bold.mb-4 Rider List
-            table.w-full.text-left.table-auto
-                thead
-                    tr
-                        th.border.px-4.py-2 Name
-                        th.border.px-4.py-2 Seats Reserved
-                        th.border.px-4.py-2 Collected
-                        th.border.px-4.py-2 Actions
-                tbody
-                    each rider in riders
-                        tr
-                            td.border.px-4.py-2
-                                .flex.items-center.space-x-2
-                                    a(href="/edit-rider/" + rider.id)= rider.name
-                                    if rider.instructions_sent === 1
-                                        span.text-green-500.ml-2 ✓
-                            td.border.px-4.py-2= rider.seats
-                            td.border.px-4.py-2= rider.collected
-                            td.border.px-4.py-2
-                                button.rounded-md.bg-gray-500.text-white.px-4.py-2(onclick="location.href='/rider/" + rider.id + "/payments'") View Payments
+  .container.mx-auto.px-4.py-8
+    if activeTrip
+      .flex.justify-between.items-center.mb-8
+        h1.text-2xl.font-bold.text-white Riders
+        a(href="/add-rider" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors")
+          i.fas.fa-plus.mr-2
+          | Add Rider
 
-            .mt-6.flex.justify-between
-                h2.text-lg.font-bold Total Funds
-                .flex.flex-col.justify-between.items-center
-                    div
-                        | Cost of Rental: #{COST_OF_RENTAL}
-                    div
-                        | Total Collected: #{TOTAL_COLLECTED}
-                    div
-                        | Remaining: #{REMAINING_FUNDS}
-                    div
-                        | Seats (Reserved / Remaining): #{RESERVED_SEATS} / #{REMAINING_SEATS}
-                button(onclick="location.href='/add-rider'" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Add Rider
+      if riders && riders.length > 0
+        .bg-gray-900.rounded-lg.shadow-lg.overflow-hidden.mb-8
+          table.min-w-full
+            thead
+              tr.bg-gray-800.text-gray-300.text-left
+                th.py-3.px-4 Name
+                th(class="py-3 px-4 hidden md:table-cell") Seats
+                th(class="py-3 px-4 hidden md:table-cell") Balance
+                th(class="py-3 px-4 hidden md:table-cell") Collected
+                th(class="py-3 px-4 hidden md:table-cell") Instructions
+                th(class="py-3 px-4 text-right hidden md:table-cell") Actions
+            tbody
+              each rider in riders
+                tr.border-t.border-gray-800.group
+                  // Mobile: Entire row clickable
+                  td(class="py-3 px-4 cursor-pointer md:cursor-default" onclick=`window.location.href='/edit-rider/${rider.id}'`)
+                    .text-white= rider.name
+                    .text-sm.text-gray-400= rider.email
+                    // Mobile-only summary info
+                    div(class="md:hidden text-sm text-gray-400 mt-1")
+                      .flex.justify-between
+                        span Seats: #{rider.seats}
+                        span Balance: $#{rider.balance}
+                      .flex.justify-between.mt-1
+                        span= rider.collected
+                        if rider.instructions_sent
+                          span(class="bg-green-500 text-white text-xs px-2 py-1 rounded") Sent
+                        else
+                          span(class="bg-yellow-500 text-white text-xs px-2 py-1 rounded") Pending
+                      // Mobile-only actions
+                      .flex.justify-end.mt-2.space-x-2
+                        a(href=`/rider/${rider.id}/payments` class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700") View Payments
+
+                  // Desktop-only columns
+                  td(class="py-3 px-4 text-white hidden md:table-cell")= rider.seats
+                  td(class="py-3 px-4 text-white hidden md:table-cell") $#{rider.balance}
+                  td(class="py-3 px-4 text-white hidden md:table-cell")= rider.collected
+                  td(class="py-3 px-4 hidden md:table-cell")
+                    if rider.instructions_sent
+                      span(class="bg-green-500 text-white text-sm px-2 py-1 rounded") Sent
+                    else
+                      span(class="bg-yellow-500 text-white text-sm px-2 py-1 rounded") Pending
+                  td(class="py-3 px-4 text-right hidden md:table-cell")
+                    .space-x-2
+                      a(href=`/rider/${rider.id}/payments` class="text-blue-400 hover:text-blue-300") Payments
+                      a(href=`/edit-rider/${rider.id}` class="text-blue-400 hover:text-blue-300") Edit
+                      if !rider.total_payments
+                        a(href=`/delete-rider/${rider.id}` class="text-red-400 hover:text-red-300") Delete
+      else
+        .text-center.text-gray-400.py-8 No riders found for this trip.
+
+      // Trip Summary Section - Smaller and at bottom
+      .bg-gray-900.rounded-lg.p-4.shadow-lg
+        .flex.items-center.justify-between.mb-4
+          h2.text-lg.font-semibold.text-white #{activeTrip.name}
+          span.text-sm.text-gray-400 #{activeTrip.start_date} - #{activeTrip.end_date}
+        
+        div(class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm")
+          div(class="bg-gray-800 rounded p-3")
+            .text-gray-400 Reserved/Total Seats
+            .font-bold.text-white #{RESERVED_SEATS}/#{TOTAL_SEATS}
+          div(class="bg-gray-800 rounded p-3")
+            .text-gray-400 Available Seats
+            .font-bold.text-white #{REMAINING_SEATS}
+          div(class="bg-gray-800 rounded p-3")
+            .text-gray-400 Total Collected
+            .font-bold.text-white #{TOTAL_COLLECTED}
+          div(class="bg-gray-800 rounded p-3")
+            .text-gray-400 Remaining Funds
+            .font-bold.text-white #{REMAINING_FUNDS}
+
+    else
+      .bg-yellow-600.text-white.p-4.rounded-lg.shadow-lg.mb-8
+        .flex.items-center
+          i.fas.fa-exclamation-triangle.mr-2
+          | No active trip selected. 
+          a(href="/trips" class="underline ml-2") Select a trip
