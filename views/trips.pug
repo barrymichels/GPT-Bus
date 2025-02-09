@@ -33,9 +33,12 @@ block content
                 strong Total Cost: 
                 | $#{trip.cost_of_rental}
             
-            if !trip.is_active
-              form(action=`/trip/${trip.id}/activate` method="POST" class="mt-4")
-                button(type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors") Make Active
+            .flex.justify-between.items-center.mt-4
+              if !trip.is_active
+                form(action=`/trip/${trip.id}/activate` method="POST")
+                  button(type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors") Make Active
+              a(href=`/trip/${trip.id}/add-riders` class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors") Add Existing Riders
+              a(href=`/trip/${trip.id}/roster` class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors" target="_blank") Export Roster
     else
       .text-center.text-white.py-8
         p No trips found. Please add a new trip to get started.
