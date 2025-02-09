@@ -322,12 +322,21 @@ function createServer(db) {
             return res.redirect("/login");
         }
         const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent } = req.body;
+        // Update riders table with valid columns
         db.run(
-            "UPDATE riders SET name = ?, email = ?, phone = ?, seats = ?, balance = ?, street = ?, city = ?, state = ?, zip = ?, instructions_sent = ? WHERE id = ?",
-            [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0, req.params.id],
+            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ? WHERE id = ?",
+            [name, email, phone, street, city, state, zip, req.params.id],
             (err) => {
                 if (err) throw err;
-                res.redirect("/dashboard");
+                // Update trip_riders table for additional fields
+                db.run(
+                    "UPDATE trip_riders SET seats = ?, balance = ?, instructions_sent = ? WHERE rider_id = ?",
+                    [seats, balance, instructions_sent ? 1 : 0, req.params.id],
+                    (err) => {
+                        if (err) throw err;
+                        res.redirect("/dashboard");
+                    }
+                );
             }
         );
     });

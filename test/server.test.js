@@ -458,4 +458,127 @@ describe("Server Routes", function() {
       agent.get("/dashboard").expect(200, done);
     });
   });
+
+  describe("Coverage Improvement Endpoints", () => {
+    let riderId, paymentId, tripId;
+
+    // Create a rider for edit tests
+    beforeAll((done) => {
+      agent
+        .post("/add-rider")
+        .send({ name: "Edit Rider", email: "edit@test.com", phone: "111-2222", seats: 1 })
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM riders WHERE email = ?", ["edit@test.com"], (err, row) => {
+            if (err) return done(err);
+            riderId = row.id;
+            done();
+          });
+        });
+    });
+
+    it("GET /edit-rider/:id should return the edit form", (done) => {
+      agent.get(`/edit-rider/${riderId}`).expect(200, done);
+    });
+    
+    it("POST /edit-rider/:id should update rider and redirect", (done) => {
+      agent
+        .post(`/edit-rider/${riderId}`)
+        .send({
+          name: "Edited Rider", email: "edit@test.com", phone: "111-3333", seats: 2,
+          balance: 200, street: "", city: "", state: "", zip: "", instructions_sent: false
+        })
+        .expect("Location", "/dashboard")
+        .expect(302, done);
+    });
+
+    it("GET /rider/:id/payments should show payment history", (done) => {
+      agent.get(`/rider/${riderId}/payments`).expect(200, done);
+    });
+
+    // Create a payment for further tests.
+    it("should add and then edit a payment for rider", (done) => {
+      agent
+        .post(`/add-payment/${riderId}`)
+        .send({ date: "2024-02-01", amount: 50 })
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM payments WHERE rider_id = ?", [riderId], (err, row) => {
+            if (err) return done(err);
+            paymentId = row.id;
+            // Test GET edit payment page
+            agent.get(`/edit-payment/${paymentId}`).expect(200, () => {
+              // Update the payment
+              agent
+                .post(`/edit-payment/${paymentId}`)
+                .send({ date: "2024-02-02", amount: 75 })
+                .expect("Location", `/rider/${riderId}/payments`)
+                .expect(302, done);
+            });
+          });
+        });
+    });
+
+    it("POST /delete-payment/:paymentId should delete a payment", (done) => {
+      // First add a new payment so we can delete it.
+      agent
+        .post(`/add-payment/${riderId}`)
+        .send({ date: "2024-02-03", amount: 100 })
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM payments WHERE rider_id = ? ORDER BY id DESC LIMIT 1", [riderId], (err, row) => {
+            if (err) return done(err);
+            const delPaymentId = row.id;
+            agent
+              .post(`/delete-payment/${delPaymentId}`)
+              .expect(302)
+              .expect("Location", `/rider/${riderId}/payments`, done);
+          });
+        });
+    });
+
+    // Trip Riders endpoints
+    it("GET /trip/:id/add-riders should return add-trip-riders form", (done) => {
+      // Create a new trip for testing.
+      const tripData = {
+        name: "Trip For Riders",
+        start_date: "2024-03-01",
+        end_date: "2024-03-05",
+        cost_of_rental: 500,
+        cost_per_seat: 50,
+        total_seats: 20
+      };
+      agent
+        .post("/add-trip")
+        .send(tripData)
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM trips WHERE name = ?", [tripData.name], (err, row) => {
+            if (err) return done(err);
+            tripId = row.id;
+            agent.get(`/trip/${tripId}/add-riders`).expect(200, done);
+          });
+        });
+    });
+
+    it("POST /trip/:id/add-riders should add a rider to a trip and redirect", (done) => {
+      // Create another rider for this trip.
+      agent
+        .post("/add-rider")
+        .send({ name: "Trip Rider", email: "triprider@test.com", phone: "222-4444", seats: 1 })
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM riders WHERE email = ?", ["triprider@test.com"], (err, row) => {
+            if (err) return done(err);
+            const newRiderId = row.id;
+            // Simulate form data structure for selected riders
+            agent
+              .post(`/trip/${tripId}/add-riders`)
+              .send({ selected_riders: newRiderId, seats: { [newRiderId]: "1" } })
+              .expect("Location", "/trips")
+              .expect(302, done);
+          });
+        });
+    });
+  });
 });
