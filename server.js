@@ -146,11 +146,11 @@ app.get("/dashboard", (req, res) => {
         // Modified query to get riders and payments for active trip
         db.all(
             `SELECT r.*, tr.seats, tr.balance, tr.instructions_sent,
-            SUM(p.amount) AS total_payments,
-            (tr.balance - COALESCE(SUM(p.amount), 0)) AS balance
+            SUM(CASE WHEN p.trip_id = tr.trip_id THEN p.amount ELSE 0 END) AS total_payments,
+            (tr.balance - COALESCE(SUM(CASE WHEN p.trip_id = tr.trip_id THEN p.amount ELSE 0 END), 0)) AS balance
             FROM riders r
             INNER JOIN trip_riders tr ON r.id = tr.rider_id
-            LEFT JOIN payments p ON tr.trip_id = p.trip_id AND r.id = p.rider_id
+            LEFT JOIN payments p ON r.id = p.rider_id
             WHERE tr.trip_id = ?
             GROUP BY r.id
             ORDER BY r.name ASC`,
@@ -270,15 +270,15 @@ app.get("/add-rider", (req, res) => {
             console.error('Database error:', err);
             return res.render("add-rider", { error: "Database error occurred" });
         }
-        
+
         if (!activeTrip) {
-            return res.render("add-rider", { 
+            return res.render("add-rider", {
                 error: "No active trip selected. Please select a trip first.",
                 showTripLink: true
             });
         }
-        
-        res.render("add-rider", { 
+
+        res.render("add-rider", {
             activeTrip,
             formTitle: `Add New Rider to ${activeTrip.name}`
         });
@@ -327,14 +327,27 @@ app.get("/edit-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    db.get(
-        "SELECT * FROM riders WHERE id = ?",
-        [req.params.id],
-        (err, rider) => {
-            if (err) throw err;
-            res.render("edit-rider", { rider });
+
+    // Get active trip first
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) {
+            return res.redirect("/trips");
         }
-    );
+
+        // Get rider and trip_rider info
+        db.get(
+            `SELECT r.*, tr.seats, tr.balance, tr.instructions_sent 
+             FROM riders r 
+             LEFT JOIN trip_riders tr ON r.id = tr.rider_id AND tr.trip_id = ?
+             WHERE r.id = ?`,
+            [activeTrip.id, req.params.id],
+            (err, rider) => {
+                if (err) throw err;
+                res.render("edit-rider", { rider, activeTrip });
+            }
+        );
+    });
 });
 
 // Process rider information updates
@@ -342,41 +355,85 @@ app.post("/edit-rider/:id", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent } = req.body;
-    db.run(
-        "UPDATE riders SET name = ?, email = ?, phone = ?, seats = ?, balance = ?, street = ?, city = ?, state = ?, zip = ?, instructions_sent = ? WHERE id = ?",
-        [name, email, phone, seats, balance, street, city, state, zip, instructions_sent ? 1 : 0, req.params.id],
-        (err) => {
-            if (err) throw err;
-            res.redirect("/dashboard");
+
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) {
+            return res.redirect("/trips");
         }
-    );
+
+        const {
+            name, email, phone, other_phone, street, city, state, zip,
+            seats, balance, instructions_sent
+        } = req.body;
+
+        db.serialize(() => {
+            // Update rider base info
+            db.run(
+                "UPDATE riders SET name = ?, email = ?, phone = ?, other_phone = ?, street = ?, city = ?, state = ?, zip = ? WHERE id = ?",
+                [name, email, phone, other_phone, street, city, state, zip, req.params.id],
+                (err) => {
+                    if (err) throw err;
+
+                    // Update or insert trip_rider info
+                    db.run(`
+                        INSERT INTO trip_riders (trip_id, rider_id, seats, balance, instructions_sent)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(trip_id, rider_id) DO UPDATE SET
+                        seats = ?, balance = ?, instructions_sent = ?`,
+                        [
+                            activeTrip.id, req.params.id, seats, balance, instructions_sent ? 1 : 0,
+                            seats, balance, instructions_sent ? 1 : 0
+                        ],
+                        (err) => {
+                            if (err) throw err;
+                            res.redirect("/dashboard");
+                        }
+                    );
+                }
+            );
+        });
+    });
 });
 
 // Delete rider if they have no payments
-app.get("/delete-rider/:id", (req, res) => {
+app.get("/delete-rider/:id/from-trip", (req, res) => {
     if (!req.isAuthenticated()) {
         return res.redirect("/login");
     }
-    // Check if rider has any payments before deletion
-    db.get(
-        "SELECT COUNT(*) AS paymentCount FROM payments WHERE rider_id = ?",
-        [req.params.id],
-        (err, result) => {
-            if (err) throw err;
-            if (result.paymentCount > 0) {
-                return res.redirect("/dashboard");  // Can't delete if payments exist
+
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) return res.redirect("/trips");
+
+        // Only remove from current trip
+        db.run(
+            "DELETE FROM trip_riders WHERE rider_id = ? AND trip_id = ?",
+            [req.params.id, activeTrip.id],
+            (err) => {
+                if (err) throw err;
+                res.redirect("/dashboard");
             }
-            db.run(
-                "DELETE FROM riders WHERE id = ?",
-                [req.params.id],
-                (err) => {
-                    if (err) throw err;
-                    res.redirect("/dashboard");
-                }
-            );
-        }
-    );
+        );
+    });
+});
+
+app.get("/delete-rider/:id/complete", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    db.serialize(() => {
+        // Delete from all related tables in correct order
+        db.run("DELETE FROM trip_riders WHERE rider_id = ?", [req.params.id]);
+        db.run("DELETE FROM emergency_contacts WHERE rider_id = ?", [req.params.id]);
+        db.run("DELETE FROM medical_notes WHERE rider_id = ?", [req.params.id]);
+        db.run("DELETE FROM payments WHERE rider_id = ?", [req.params.id]);
+        db.run("DELETE FROM riders WHERE id = ?", [req.params.id], (err) => {
+            if (err) throw err;
+            res.redirect("/dashboard");
+        });
+    });
 });
 
 // Payment Management Routes
@@ -386,21 +443,30 @@ app.get("/rider/:id/payments", (req, res) => {
         return res.redirect("/login");
     }
     // Get rider details and their payment history
-    db.get(
-        "SELECT * FROM riders WHERE id = ?",
-        [req.params.id],
-        (err, rider) => {
-            if (err) throw err;
-            db.all(
-                "SELECT * FROM payments WHERE rider_id = ?",
-                [req.params.id],
-                (err, payments) => {
-                    if (err) throw err;
-                    res.render("rider-payments", { rider, payments });
-                }
-            );
-        }
-    );
+    db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+        if (err) throw err;
+        if (!activeTrip) return res.redirect("/trips");
+
+        db.get(
+            "SELECT * FROM riders WHERE id = ?",
+            [req.params.id],
+            (err, rider) => {
+                if (err) throw err;
+                db.all(
+                    "SELECT * FROM payments WHERE rider_id = ? AND trip_id = ?",
+                    [req.params.id, activeTrip.id],
+                    (err, payments) => {
+                        if (err) throw err;
+                        res.render("rider-payments", {
+                            rider,
+                            payments,
+                            activeTrip
+                        });
+                    }
+                );
+            }
+        );
+    });
 });
 
 // Display form to add new payment
@@ -628,9 +694,30 @@ async function initDbAndStartServer() {
             // Enable foreign keys
             db.run('PRAGMA foreign_keys = ON');
 
+            // Helper function to safely add columns
+            function addColumn(table, column, type) {
+                return new Promise((resolve, reject) => {
+                    db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`, (err) => {
+                        // Column might already exist, which is fine
+                        resolve();
+                    });
+                });
+            }
+
+            // Add new columns to existing tables
+            Promise.all([
+                addColumn('riders', 'other_phone', 'TEXT DEFAULT ""'),
+                addColumn('emergency_contacts', 'relationship', 'TEXT DEFAULT ""'),
+                addColumn('emergency_contacts', 'other_phone', 'TEXT DEFAULT ""'),
+                addColumn('payments', 'trip_id', 'INTEGER REFERENCES trips(id)')
+            ]).then(() => {
+                console.log('Schema updates completed');
+            });
+
             // Create tables only if they don't exist
             console.log('Checking/creating database tables...');
 
+            // Create users and sessions tables
             db.run(`
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
@@ -647,12 +734,14 @@ async function initDbAndStartServer() {
                 )
             `);
 
+            // Create riders table
             db.run(`
                 CREATE TABLE IF NOT EXISTS riders (
                     id INTEGER PRIMARY KEY,
                     name TEXT,
                     email TEXT,
                     phone TEXT,
+                    other_phone TEXT DEFAULT '',
                     street TEXT DEFAULT '',
                     city TEXT DEFAULT '',
                     state TEXT DEFAULT '',
@@ -660,6 +749,7 @@ async function initDbAndStartServer() {
                 )
             `);
 
+            // Create trips and trip_riders tables
             db.run(`
                 CREATE TABLE IF NOT EXISTS trips (
                     id INTEGER PRIMARY KEY,
@@ -687,6 +777,7 @@ async function initDbAndStartServer() {
                 )
             `);
 
+            // Create payments table
             db.run(`
                 CREATE TABLE IF NOT EXISTS payments (
                     id INTEGER PRIMARY KEY,
@@ -699,7 +790,29 @@ async function initDbAndStartServer() {
                 )
             `);
 
-            // Only create default admin user if no users exist
+            // Create emergency contacts and medical notes tables
+            db.run(`
+                CREATE TABLE IF NOT EXISTS emergency_contacts (
+                    id INTEGER PRIMARY KEY,
+                    rider_id INTEGER,
+                    contact_order INTEGER,
+                    name TEXT,
+                    relationship TEXT DEFAULT '',
+                    phone TEXT,
+                    other_phone TEXT DEFAULT '',
+                    FOREIGN KEY(rider_id) REFERENCES riders(id)
+                )
+            `);
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS medical_notes (
+                    rider_id INTEGER PRIMARY KEY,
+                    notes TEXT,
+                    FOREIGN KEY(rider_id) REFERENCES riders(id)
+                )
+            `);
+
+            // Create default admin user if none exists
             db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
                 if (err) {
                     console.error('Error checking users table:', err);
@@ -785,6 +898,228 @@ app.post("/trip/:id/activate", (req, res) => {
         db.run("UPDATE trips SET is_active = 1 WHERE id = ?", [req.params.id], (err) => {
             if (err) throw err;
             res.redirect("/trips");
+        });
+    });
+});
+
+// Add new route to handle emergency contact form submission
+app.post("/rider/:id/emergency-contacts", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    const riderId = req.params.id;
+    const {
+        contact1_name, contact1_relationship, contact1_phone, contact1_other_phone,
+        contact2_name, contact2_relationship, contact2_phone, contact2_other_phone,
+        medical_notes
+    } = req.body;
+
+    db.serialize(() => {
+        // Delete existing contacts
+        db.run("DELETE FROM emergency_contacts WHERE rider_id = ?", [riderId]);
+
+        // Insert primary contact
+        db.run(
+            "INSERT INTO emergency_contacts (rider_id, contact_order, name, relationship, phone, other_phone) VALUES (?, 1, ?, ?, ?, ?)",
+            [riderId, contact1_name, contact1_relationship, contact1_phone, contact1_other_phone]
+        );
+
+        // Insert secondary contact if provided
+        if (contact2_name || contact2_phone) {
+            db.run(
+                "INSERT INTO emergency_contacts (rider_id, contact_order, name, relationship, phone, other_phone) VALUES (?, 2, ?, ?, ?, ?)",
+                [riderId, contact2_name, contact2_relationship, contact2_phone, contact2_other_phone]
+            );
+        }
+
+        // Update medical notes
+        db.run("INSERT OR REPLACE INTO medical_notes (rider_id, notes) VALUES (?, ?)",
+            [riderId, medical_notes]
+        );
+
+        res.redirect(`/edit-rider/${riderId}`);
+    });
+});
+
+// Add route to get emergency contacts
+app.get("/rider/:id/emergency-contacts", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    const riderId = req.params.id;
+    db.serialize(() => {
+        db.all("SELECT * FROM emergency_contacts WHERE rider_id = ? ORDER BY contact_order", [riderId], (err, contacts) => {
+            if (err) throw err;
+            db.get("SELECT notes FROM medical_notes WHERE rider_id = ?", [riderId], (err, medical) => {
+                if (err) throw err;
+                res.render("emergency-contacts", {
+                    riderId,
+                    contact1: contacts.find(c => c.contact_order === 1) || {},
+                    contact2: contacts.find(c => c.contact_order === 2) || {},
+                    medical_notes: medical ? medical.notes : ''
+                });
+            });
+        });
+    });
+});
+
+// Add route to show available riders for a trip
+app.get("/trip/:id/add-riders", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    const tripId = req.params.id;
+
+    db.serialize(() => {
+        // Get trip info
+        db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
+            if (err) throw err;
+
+            // Get riders not already in this trip
+            db.all(`
+                SELECT * FROM riders 
+                WHERE id NOT IN (
+                    SELECT rider_id FROM trip_riders WHERE trip_id = ?
+                )
+                ORDER BY name
+            `, [tripId], (err, availableRiders) => {
+                if (err) throw err;
+                res.render("add-trip-riders", { trip, availableRiders });
+            });
+        });
+    });
+});
+
+// Process adding existing riders to a trip
+app.post("/trip/:id/add-riders", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    const tripId = parseInt(req.params.id);
+    const selected_riders = req.body.selected_riders || {};
+
+    db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
+        if (err) {
+            return res.redirect("/dashboard");
+        }
+
+        if (!trip) {
+            return res.redirect("/dashboard");
+        }
+
+        const riderIds = Object.keys(selected_riders)
+            .map(key => parseInt(selected_riders[key]))
+            .filter(id => !isNaN(id));
+
+        if (riderIds.length === 0) {
+            return res.redirect("/dashboard");
+        }
+
+        const placeholders = riderIds.map(() => '?').join(',');
+        db.all(
+            `SELECT * FROM riders WHERE id IN (${placeholders})`,
+            riderIds,
+            (err, validRiders) => {
+                if (err) {
+                    return res.redirect("/dashboard");
+                }
+
+                const ridersToAdd = validRiders.map(rider => ({
+                    id: rider.id,
+                    seats: parseInt(req.body.seats[rider.id] || 1)
+                }));
+
+                if (ridersToAdd.length === 0) {
+                    return res.redirect("/dashboard");
+                }
+
+                db.serialize(() => {
+                    db.run("BEGIN TRANSACTION");
+
+                    let success = true;
+                    ridersToAdd.forEach(rider => {
+                        const balance = rider.seats * trip.cost_per_seat;
+                        db.run(
+                            "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
+                            [tripId, rider.id, rider.seats, balance],
+                            err => {
+                                if (err) success = false;
+                            }
+                        );
+                    });
+
+                    if (success) {
+                        db.run("COMMIT", () => res.redirect("/dashboard"));
+                    } else {
+                        db.run("ROLLBACK", () => res.redirect("/dashboard"));
+                    }
+                });
+            }
+        );
+    });
+});
+
+// Add roster export route
+app.get("/trip/:id/roster", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.redirect("/login");
+    }
+
+    const tripId = parseInt(req.params.id);
+
+    db.serialize(() => {
+        db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
+            if (err) throw err;
+
+            const query = `
+                SELECT 
+                    r.name, r.phone, r.other_phone,
+                    ec1.name as contact1_name, ec1.relationship as contact1_relationship,
+                    ec1.phone as contact1_phone, ec1.other_phone as contact1_other_phone,
+                    ec2.name as contact2_name, ec2.relationship as contact2_relationship,
+                    ec2.phone as contact2_phone, ec2.other_phone as contact2_other_phone,
+                    mn.notes as medical_notes
+                FROM riders r
+                INNER JOIN trip_riders tr ON r.id = tr.rider_id
+                LEFT JOIN (
+                    SELECT * FROM emergency_contacts WHERE contact_order = 1
+                ) ec1 ON r.id = ec1.rider_id
+                LEFT JOIN (
+                    SELECT * FROM emergency_contacts WHERE contact_order = 2
+                ) ec2 ON r.id = ec2.rider_id
+                LEFT JOIN medical_notes mn ON r.id = mn.rider_id
+                WHERE tr.trip_id = ?
+                ORDER BY r.name ASC
+            `;
+
+            db.all(query, [tripId], (err, riders) => {
+                if (err) throw err;
+
+                const formattedRiders = riders.map(rider => ({
+                    name: rider.name,
+                    phone: rider.phone,
+                    other_phone: rider.other_phone,
+                    contact1: rider.contact1_name ? {
+                        name: rider.contact1_name,
+                        relationship: rider.contact1_relationship,
+                        phone: rider.contact1_phone,
+                        other_phone: rider.contact1_other_phone
+                    } : null,
+                    contact2: rider.contact2_name ? {
+                        name: rider.contact2_name,
+                        relationship: rider.contact2_relationship,
+                        phone: rider.contact2_phone,
+                        other_phone: rider.contact2_other_phone
+                    } : null,
+                    medical_notes: rider.medical_notes || ''
+                }));
+
+                res.render("trip-roster", { trip, riders: formattedRiders });
+            });
         });
     });
 });

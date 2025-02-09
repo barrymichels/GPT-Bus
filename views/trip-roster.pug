@@ -1,0 +1,108 @@
+doctype html
+html(lang="en")
+  head
+    title Trip Roster - #{trip.name}
+    style.
+      @media print {
+        @page {
+          size: landscape;
+          margin: 0.5in;
+        }
+      }
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.4;
+        margin: 0;
+        padding: 20px;
+      }
+      .header {
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 14px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      .emergency-info {
+        font-size: 14px;
+        color: #333;
+      }
+      .col-rider {
+        width: 15%;
+      }
+      .col-contact {
+        width: 25%;
+      }
+      .col-notes {
+        width: 35%;
+      }
+      .print-only {
+        display: none;
+      }
+      @media print {
+        .no-print {
+          display: none;
+        }
+        .print-only {
+          display: block;
+        }
+      }
+
+  body
+    .header
+      h1 #{trip.name} - Trip Roster
+      p.print-only Printed on #{new Date().toLocaleDateString()}
+      button(onclick="window.print()" class="no-print") Print Roster
+
+    table
+      thead
+        tr
+          th(class="col-rider") Rider Information
+          th(class="col-contact") Emergency Contact #1
+          th(class="col-contact") Emergency Contact #2
+          th(class="col-notes") Medical Notes
+      tbody
+        each rider in riders
+          tr
+            td
+              strong #{rider.name}
+              br
+              | Phone: #{rider.phone}
+              if rider.other_phone
+                br
+                | Alt: #{rider.other_phone}
+            td
+              if rider.contact1
+                strong #{rider.contact1.name}
+                if rider.contact1.relationship
+                  |  (#{rider.contact1.relationship})
+                br
+                | #{rider.contact1.phone}
+                if rider.contact1.other_phone
+                  br
+                  | Alt: #{rider.contact1.other_phone}
+            td
+              if rider.contact2
+                strong #{rider.contact2.name}
+                if rider.contact2.relationship
+                  |  (#{rider.contact2.relationship})
+                br
+                | #{rider.contact2.phone}
+                if rider.contact2.other_phone
+                  br
+                  | Alt: #{rider.contact2.other_phone}
+            td.emergency-info #{rider.medical_notes || ''}
