@@ -94,24 +94,6 @@ describe("Server Routes", function() {
     });
   });
 
-  afterAll((done) => {
-    db.serialize(() => {
-      db.run("DELETE FROM trip_riders", [], (err) => {
-        if (err) return done(err);
-        db.run("DELETE FROM payments", [], (err) => {
-          if (err) return done(err);
-          db.run("DELETE FROM riders", [], (err) => {
-            if (err) return done(err);
-            db.run("DELETE FROM trips", [], (err) => {
-              if (err) return done(err);
-              db.close(done);
-            });
-          });
-        });
-      });
-    });
-  });
-
   it("should return the login page", (done) => {
     request(app)
       .get("/login")
@@ -579,6 +561,77 @@ describe("Server Routes", function() {
               .expect(302, done);
           });
         });
+    });
+  });
+
+  describe("Additional Coverage Endpoints Part 2", () => {
+    it("GET / should redirect to /dashboard", (done) => {
+      agent.get("/").expect("Location", "/dashboard").expect(302, done);
+    });
+
+    it("GET /add-trip should return trip creation form", (done) => {
+      agent.get("/add-trip").expect(200, done);
+    });
+
+    it("GET /trips should return a list of trips", (done) => {
+      agent.get("/trips").expect(200, done);
+    });
+
+    it("GET /delete-rider/:id should delete a rider with no payments", (done) => {
+      const riderData = {
+        name: "Delete Rider",
+        email: "delete@test.com",
+        phone: "000-1111",
+        seats: 1,
+        street: "",
+        city: "",
+        state: "",
+        zip: ""
+      };
+      // Create a rider to later delete
+      agent
+        .post("/add-rider")
+        .send(riderData)
+        .end((err) => {
+          if (err) return done(err);
+          db.get("SELECT id FROM riders WHERE email = ?", [riderData.email], (err, row) => {
+            if (err) return done(err);
+            const delId = row.id;
+            agent
+              .get(`/delete-rider/${delId}`)
+              .expect("Location", "/dashboard")
+              .expect(302, () => {
+                // Verify deletion by checking that no rider exists with this id
+                db.get("SELECT * FROM riders WHERE id = ?", [delId], (err, row) => {
+                  if (err) return done(err);
+                  expect(row).toBeUndefined();
+                  done();
+                });
+              });
+          });
+        });
+    });
+
+    it("GET /add-payment/:riderId should return the payment form", (done) => {
+      const uniqueEmail = `paymentform${Date.now()}_${Math.random()}@test.com`;
+      const riderData = {
+        name: "Payment Form Rider",
+        email: uniqueEmail,
+        phone: "222-3333",
+        street: "",
+        city: "",
+        state: "",
+        zip: ""
+      };
+      // Directly insert into riders table to avoid duplicate trip_riders insertion
+      db.run(
+        "INSERT INTO riders (name, email, phone, street, city, state, zip) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [riderData.name, riderData.email, riderData.phone, riderData.street, riderData.city, riderData.state, riderData.zip],
+        function(err) {
+          if (err) return done(err);
+          agent.get(`/add-payment/${this.lastID}`).expect(200, done);
+        }
+      );
     });
   });
 });
