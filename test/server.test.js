@@ -62,6 +62,16 @@ describe("Server Routes", function() {
                 PRIMARY KEY(trip_id, rider_id)
               )`);
 
+      db.run(`CREATE TABLE payments (
+        id INTEGER PRIMARY KEY,
+        rider_id INTEGER,
+        trip_id INTEGER,
+        date TEXT,
+        amount INTEGER,
+        FOREIGN KEY(rider_id) REFERENCES riders(id),
+        FOREIGN KEY(trip_id) REFERENCES trips(id)
+      )`);
+
       // Insert default admin user with hashed password
       bcrypt.hash("password123", 10, (err, hash) => {
         if (err) return done(err);
@@ -85,7 +95,21 @@ describe("Server Routes", function() {
   });
 
   afterAll((done) => {
-    db.close(done);
+    db.serialize(() => {
+      db.run("DELETE FROM trip_riders", [], (err) => {
+        if (err) return done(err);
+        db.run("DELETE FROM payments", [], (err) => {
+          if (err) return done(err);
+          db.run("DELETE FROM riders", [], (err) => {
+            if (err) return done(err);
+            db.run("DELETE FROM trips", [], (err) => {
+              if (err) return done(err);
+              db.close(done);
+            });
+          });
+        });
+      });
+    });
   });
 
   it("should return the login page", (done) => {
@@ -161,6 +185,34 @@ describe("Server Routes", function() {
           });
       });
     });
+
+    it("should handle invalid trip data", (done) => {
+      const invalidTrip = {
+        name: "",
+        start_date: "invalid-date",
+        cost_of_rental: "not-a-number"
+      };
+
+      db.serialize(() => {
+        db.get("SELECT COUNT(*) as count FROM trips", [], (err, beforeCount) => {
+          if (err) return done(err);
+          
+          agent
+            .post("/add-trip")
+            .send(invalidTrip)
+            .expect(302)
+            .end((err) => {
+              if (err) return done(err);
+              
+              db.get("SELECT COUNT(*) as count FROM trips", [], (err, afterCount) => {
+                if (err) return done(err);
+                expect(afterCount.count).toBe(beforeCount.count); // No new trip should be added
+                done();
+              });
+            });
+        });
+      });
+    });
   });
 
   describe("Rider Management", () => {
@@ -183,31 +235,227 @@ describe("Server Routes", function() {
         seats: 2
       };
 
-      agent
-        .post("/add-rider")
-        .send(riderData)
-        .expect(302)
-        .expect("Location", "/dashboard")
-        .end((err) => {
-          if (err) return done(err);
-          // Verify rider was created
-          db.get("SELECT * FROM riders WHERE email = ?", [riderData.email], (err, rider) => {
+      db.serialize(() => {
+        agent
+          .post("/add-rider")
+          .send(riderData)
+          .expect(302)
+          .expect("Location", "/dashboard")
+          .end((err) => {
             if (err) return done(err);
-            expect(rider).toBeTruthy();
-            expect(rider.name).toBe(riderData.name);
-            // Verify trip_riders entry
-            db.get(
-              "SELECT * FROM trip_riders WHERE rider_id = ?", 
-              [rider.id],
-              (err, tripRider) => {
+            // Verify rider was created
+            db.get("SELECT * FROM riders WHERE email = ?", [riderData.email], (err, rider) => {
+              if (err) return done(err);
+              expect(rider).toBeTruthy();
+              expect(rider.name).toBe(riderData.name);
+              // Verify trip_riders entry
+              db.get(
+                "SELECT * FROM trip_riders WHERE rider_id = ?", 
+                [rider.id],
+                (err, tripRider) => {
+                  if (err) return done(err);
+                  expect(tripRider).toBeTruthy();
+                  expect(tripRider.seats).toBe(2);
+                  done();
+                }
+              );
+            });
+          });
+      });
+    });
+  });
+
+  describe("Payment Management", () => {
+    let testRider;
+    let activeTrip;
+
+    beforeEach((done) => {
+      db.serialize(() => {
+        // First ensure we have an active trip
+        db.run("UPDATE trips SET is_active = 1 WHERE id = (SELECT id FROM trips LIMIT 1)", (err) => {
+          if (err) return done(err);
+          
+          db.get("SELECT id FROM trips WHERE is_active = 1", [], (err, trip) => {
+            if (err) return done(err);
+            activeTrip = trip;
+            
+            // Then create our test rider
+            const riderData = {
+              name: "Payment Test Rider",
+              email: `payment${Date.now()}@test.com`,
+              phone: "555-0123",
+              seats: 2
+            };
+
+            db.run(
+              "INSERT INTO riders (name, email, phone) VALUES (?, ?, ?)",
+              [riderData.name, riderData.email, riderData.phone],
+              function(err) {
                 if (err) return done(err);
-                expect(tripRider).toBeTruthy();
-                expect(tripRider.seats).toBe(2);
+                testRider = { id: this.lastID, ...riderData };
                 done();
               }
             );
           });
         });
+      });
+    });
+
+    it("should add a payment for rider", (done) => {
+      const payment = {
+        date: "2024-01-15",
+        amount: 100
+      };
+
+      db.serialize(() => {
+        agent
+          .post(`/add-payment/${testRider.id}`)
+          .send(payment)
+          .expect(302)
+          .end((err) => {
+            if (err) return done(err);
+            db.get(
+              "SELECT * FROM payments WHERE rider_id = ?",
+              [testRider.id],
+              (err, result) => {
+                if (err) return done(err);
+                expect(result).toBeTruthy();
+                expect(result.amount).toBe(100);
+                done();
+              }
+            );
+          });
+      });
+    });
+
+    it("should edit an existing payment", (done) => {
+      db.serialize(() => {  // Use serialize to ensure operations complete in order
+        db.run(
+          "INSERT INTO payments (rider_id, trip_id, date, amount) VALUES (?, ?, ?, ?)",
+          [testRider.id, activeTrip.id, "2024-01-15", 100],
+          function(err) {
+            if (err) return done(err);
+            const paymentId = this.lastID;
+
+            agent
+              .post(`/edit-payment/${paymentId}`)
+              .send({
+                date: "2024-01-16",
+                amount: 150
+              })
+              .expect(302)
+              .end(done);
+          }
+        );
+      });
+    });
+  });
+
+  describe("Trip Riders Management", () => {
+    let testTrip;
+
+    beforeEach((done) => {
+      db.serialize(() => {
+        const tripData = {
+          name: `Trip Test ${Date.now()}`,
+          start_date: "2024-02-01",
+          end_date: "2024-02-07",
+          cost_of_rental: 1000,
+          cost_per_seat: 100,
+          total_seats: 10
+        };
+
+        db.run(
+          "INSERT INTO trips (name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats) VALUES (?, ?, ?, ?, ?, ?)",
+          [tripData.name, tripData.start_date, tripData.end_date, tripData.cost_of_rental, tripData.cost_per_seat, tripData.total_seats],
+          function(err) {
+            if (err) return done(err);
+            testTrip = { id: this.lastID, ...tripData };
+            done();
+          }
+        );
+      });
+    });
+
+    it("should add multiple riders to a trip", (done) => {
+      const riders = [
+        { name: "Rider 1", email: "rider1@test.com", seats: 2 },
+        { name: "Rider 2", email: "rider2@test.com", seats: 1 }
+      ];
+
+      db.serialize(() => {
+        let insertCount = 0;
+        riders.forEach(rider => {
+          db.run(
+            "INSERT INTO riders (name, email) VALUES (?, ?)",
+            [rider.name, rider.email],
+            function(err) {
+              if (err) return done(err);
+              const riderId = this.lastID;
+              
+              db.run(
+                "INSERT INTO trip_riders (trip_id, rider_id, seats) VALUES (?, ?, ?)",
+                [testTrip.id, riderId, rider.seats],
+                (err) => {
+                  if (err) return done(err);
+                  insertCount++;
+                  if (insertCount === riders.length) {
+                    db.all(
+                      "SELECT * FROM trip_riders WHERE trip_id = ?",
+                      [testTrip.id],
+                      (err, tripRiders) => {
+                        if (err) return done(err);
+                        expect(tripRiders.length).toBe(2);
+                        done();
+                      }
+                    );
+                  }
+                }
+              );
+            }
+          );
+        });
+      });
+    });
+  });
+
+  describe("Additional Endpoints", () => {
+    it("GET /change-password should return the change-password form", (done) => {
+      agent.get("/change-password").expect(200, done);
+    });
+
+    it("POST /change-password should redirect to /dashboard", (done) => {
+      agent
+        .post("/change-password")
+        .send({ newPassword: "newpassword123" })
+        .expect("Location", "/dashboard")
+        .expect(302, done);
+    });
+
+    it("GET /logout should redirect to /login", (done) => {
+      agent.get("/logout").expect("Location", "/login").expect(302, done);
+    });
+
+    it("GET /add-user should return the add-user form", (done) => {
+      // Re–login since /logout cleared the session
+      agent
+        .post("/login")
+        .send({ username: "admin", password: "newpassword123" })
+        .end(() => {
+          agent.get("/add-user").expect(200, done);
+        });
+    });
+
+    it("POST /add-user should create a new user and redirect", (done) => {
+      agent
+        .post("/add-user")
+        .send({ username: "testuser", password: "testpass" })
+        .expect("Location", "/dashboard")
+        .expect(302, done);
+    });
+
+    it("GET /dashboard should return dashboard for authenticated user", (done) => {
+      agent.get("/dashboard").expect(200, done);
     });
   });
 });

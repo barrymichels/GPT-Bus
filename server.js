@@ -268,31 +268,28 @@ function createServer(db) {
     });
 
     // Process new rider creation
-    // Calculates initial balance based on number of seats
     app.post("/add-rider", (req, res) => {
         if (!req.isAuthenticated()) {
             return res.redirect("/login");
         }
-
         db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
             if (err) throw err;
             if (!activeTrip) {
                 return res.redirect("/trips");
             }
-
             const { name, email, phone, seats, street, city, state, zip } = req.body;
-            const balance = seats * activeTrip.cost_per_seat;
-
+            // Compute initial balance:
+            const balance = parseInt(seats) * activeTrip.cost_per_seat;
             db.serialize(() => {
                 db.run(
                     "INSERT INTO riders (name, email, phone, street, city, state, zip) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    [name, email, phone, street, city, state, zip],
+                    [name, email, phone, street || "", city || "", state || "", zip || ""],
                     function (err) {
                         if (err) throw err;
                         const riderId = this.lastID;
                         db.run(
                             "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
-                            [activeTrip.id, riderId, seats, balance],
+                            [activeTrip.id, riderId, parseInt(seats), balance],
                             (err) => {
                                 if (err) throw err;
                                 res.redirect("/dashboard");
@@ -430,19 +427,26 @@ function createServer(db) {
                                     );
                                     const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
 
-                                    // Configure email transport
-                                    const transporter = nodemailer.createTransport({
-                                        host: process.env.EMAIL_HOST,
-                                        port: process.env.EMAIL_PORT,
-                                        secure: false,
-                                        auth: {
-                                            user: process.env.EMAIL_USER,
-                                            pass: process.env.EMAIL_PASS,
-                                        },
-                                        tls: {
-                                            ciphers: "SSLv3",
-                                        },
-                                    });
+                                    // Use a no-op transporter when testing to avoid open TCP handles
+                                    const transporter =
+                                        process.env.NODE_ENV === "test"
+                                            ? nodemailer.createTransport({
+                                                  streamTransport: true,
+                                                  newline: "unix",
+                                                  buffer: true,
+                                              })
+                                            : nodemailer.createTransport({
+                                                  host: process.env.EMAIL_HOST,
+                                                  port: process.env.EMAIL_PORT,
+                                                  secure: false,
+                                                  auth: {
+                                                      user: process.env.EMAIL_USER,
+                                                      pass: process.env.EMAIL_PASS,
+                                                  },
+                                                  tls: {
+                                                      ciphers: "SSLv3",
+                                                  },
+                                              });
 
                                     // Format payment amounts for email
                                     const riderEmail = rider.email || process.env.EMAIL_USER;
@@ -508,11 +512,16 @@ function createServer(db) {
 
                                     // Send email and handle response
                                     transporter.sendMail(mailOptions, (error, info) => {
-                                        if (error) {
-                                            console.log(error);
-                                        } else {
-                                            console.log("Email sent: " + info.response);
+                                        // Close the transporter connection regardless of outcome
+                                        transporter.close();
+                                        if (process.env.NODE_ENV !== "test") {
+                                            if (error) {
+                                                console.log(error);
+                                            } else {
+                                                console.log("Email sent: " + info.response);
+                                            }
                                         }
+                                        // Do not block the response; we've already redirected.
                                     });
 
                                     res.redirect(
@@ -616,6 +625,10 @@ function createServer(db) {
             return res.redirect("/login");
         }
         const { name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats } = req.body;
+        // Validate: require nonempty name and valid numbers/dates
+        if (!name || isNaN(Date.parse(start_date)) || isNaN(parseFloat(cost_of_rental)) || isNaN(parseFloat(cost_per_seat))) {
+            return res.redirect("/trips");
+        }
         db.run(
             "INSERT INTO trips (name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats) VALUES (?, ?, ?, ?, ?, ?)",
             [name, start_date, end_date, parseFloat(cost_of_rental), parseFloat(cost_per_seat), total_seats],
