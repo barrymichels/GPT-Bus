@@ -634,4 +634,47 @@ describe("Server Routes", function() {
       );
     });
   });
+
+  describe("Dashboard No Active Trip Tests", () => {
+    beforeEach((done) => {
+      // Clear all active trips
+      db.run("UPDATE trips SET is_active = 0", done);
+    });
+
+    it("should redirect to /add-trip when no trips exist", (done) => {
+      // Delete all trips
+      db.run("DELETE FROM trips", (err) => {
+        if (err) return done(err);
+        agent
+          .get("/dashboard")
+          .expect("Location", "/add-trip")
+          .expect(302, done);
+      });
+    });
+
+    it("should redirect to /trips when trips exist but none active", (done) => {
+      // Create an inactive trip
+      const tripData = {
+        name: "Inactive Trip",
+        start_date: "2024-04-01",
+        end_date: "2024-04-07",
+        cost_of_rental: 1000,
+        cost_per_seat: 100,
+        total_seats: 10,
+        is_active: 0
+      };
+
+      db.run(
+        "INSERT INTO trips (name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [tripData.name, tripData.start_date, tripData.end_date, tripData.cost_of_rental, tripData.cost_per_seat, tripData.total_seats, tripData.is_active],
+        (err) => {
+          if (err) return done(err);
+          agent
+            .get("/dashboard")
+            .expect("Location", "/trips")
+            .expect(302, done);
+        }
+      );
+    });
+  });
 });
