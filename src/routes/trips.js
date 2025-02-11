@@ -97,21 +97,59 @@ function createTripRouter(db) {
     // Activate trip
     // View trip roster
     router.get("/:id/roster", isAuthenticated, (req, res) => {
-        const tripId = req.params.id;
-        if (!tripId) return res.redirect("/trips");
-
-        db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
-            if (err || !trip) return res.redirect("/trips");
+        // First get the trip details
+        db.get("SELECT * FROM trips WHERE id = ?", [req.params.id], (err, trip) => {
+            if (err) throw err;
+            if (!trip) return res.redirect("/trips");
             
-            db.all(
-                `SELECT tr.*, r.name, r.email, r.phone 
-                 FROM trip_riders tr 
-                 JOIN riders r ON tr.rider_id = r.id 
-                 WHERE tr.trip_id = ?`, 
-                [tripId], 
+            // Get all riders with their emergency contacts
+            db.all(`
+                SELECT 
+                    r.*,
+                    tr.seats,
+                    ec1.name as contact1_name,
+                    ec1.relationship as contact1_relationship,
+                    ec1.phone as contact1_phone,
+                    ec1.other_phone as contact1_other_phone,
+                    ec2.name as contact2_name,
+                    ec2.relationship as contact2_relationship,
+                    ec2.phone as contact2_phone,
+                    ec2.other_phone as contact2_other_phone
+                FROM riders r
+                LEFT JOIN trip_riders tr ON r.id = tr.rider_id
+                LEFT JOIN (
+                    SELECT * FROM emergency_contacts WHERE contact_order = 1
+                ) ec1 ON r.id = ec1.rider_id
+                LEFT JOIN (
+                    SELECT * FROM emergency_contacts WHERE contact_order = 2
+                ) ec2 ON r.id = ec2.rider_id
+                WHERE tr.trip_id = ?
+                ORDER BY r.name`,
+                [req.params.id],
                 (err, riders) => {
-                    if (err) return res.redirect("/trips");
-                    res.render("trip-roster", { trip, riders });
+                    if (err) throw err;
+                    
+                    // Process riders to format emergency contacts
+                    const processedRiders = riders.map(rider => ({
+                        ...rider,
+                        contact1: rider.contact1_name ? {
+                            name: rider.contact1_name,
+                            relationship: rider.contact1_relationship,
+                            phone: rider.contact1_phone,
+                            other_phone: rider.contact1_other_phone
+                        } : null,
+                        contact2: rider.contact2_name ? {
+                            name: rider.contact2_name,
+                            relationship: rider.contact2_relationship,
+                            phone: rider.contact2_phone,
+                            other_phone: rider.contact2_other_phone
+                        } : null
+                    }));
+                    
+                    res.render("trip-roster", { 
+                        trip,
+                        riders: processedRiders 
+                    });
                 }
             );
         });
