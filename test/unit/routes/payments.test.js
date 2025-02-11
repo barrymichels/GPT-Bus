@@ -220,4 +220,25 @@ describe('Payment Routes', () => {
             expect(response.status).toBe(302);
         });
     });
+
+    // Test payment creation
+    // Test payment validation
+    // Test balance calculations
+    // Test error cases
+});
+
+// filepath: /home/bmichels/Code/GPT-Bus/test/unit/routes/riders.test.js
+describe('Rider Management', () => {
+    // Test rider CRUD operations
+    // Test data validation
+    // Test error handling
+    // Test relationship with trips
+});
+
+// filepath: /home/bmichels/Code/GPT-Bus/test/unit/routes/trips.test.js
+describe('Trip Management', () => {
+    // Test trip creation and updates
+    // Test seat allocation
+    // Test active trip handling
+    // Test validation rules
 });
