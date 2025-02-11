@@ -5,6 +5,9 @@ block content
     .max-w-2xl.mx-auto
       h1.text-3xl.font-bold.text-white.mb-8 Emergency Contacts
       
+      if error
+        .bg-red-500.text-white.p-4.rounded-lg.mb-6= error
+      
       form(action=`/rider/${riderId}/emergency-contacts` method="POST")
         // Primary Contact
         div(class="bg-gray-700 p-6 rounded-lg shadow-lg mb-6")
@@ -57,6 +60,7 @@ block content
                 name="contact2_name"
                 value=contact2.name
                 class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white"
+                oninput="toggleRequired(2)"
               )
             .form-group.col-span-2
               label(for="contact2_relationship" class="block text-sm font-medium text-gray-300") Relationship
@@ -65,6 +69,7 @@ block content
                 name="contact2_relationship"
                 value=contact2.relationship
                 class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white"
+                data-contact="2"
               )
             .form-group
               label(for="contact2_phone" class="block text-sm font-medium text-gray-300") Mobile Phone
@@ -73,6 +78,7 @@ block content
                 name="contact2_phone"
                 value=contact2.phone
                 class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white"
+                data-contact="2"
               )
             .form-group
               label(for="contact2_other_phone" class="block text-sm font-medium text-gray-300") Other Phone
@@ -97,3 +103,24 @@ block content
         .flex.justify-end.space-x-4
           a(href=`/edit-rider/${riderId}` class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors") Cancel
           button(type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors") Save Changes
+
+  script.
+    function toggleRequired(contactNum) {
+      const nameInput = document.getElementById(`contact${contactNum}_name`);
+      const fields = document.querySelectorAll(`[data-contact="${contactNum}"]`);
+      
+      fields.forEach(field => {
+        if (nameInput.value.trim()) {
+          field.required = true;
+          field.classList.add('border-yellow-500');
+        } else {
+          field.required = false;
+          field.classList.remove('border-yellow-500');
+        }
+      });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      toggleRequired(2);
+    });
