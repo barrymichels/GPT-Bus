@@ -42,5 +42,6 @@ async function sendReceiptEmail(recipientEmail, tripDetails, paymentAmount) {
 }
 
 module.exports = {
-  sendReceiptEmail
+  sendReceiptEmail,
+  testTransport
 };
