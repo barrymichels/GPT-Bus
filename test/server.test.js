@@ -21,7 +21,7 @@ describe("Server Tests", () => {
             fs.unlinkSync(TEST_DB_PATH);
         }
         if (fs.existsSync(TEST_DB_DIR)) {
-            fs.rmdirSync(TEST_DB_DIR);
+            fs.rmSync(TEST_DB_DIR, { recursive: true });
         }
 
         // Create test database
@@ -29,18 +29,22 @@ describe("Server Tests", () => {
         app = createServer(db);
     });
 
-    afterAll((done) => {
+    afterAll(() => new Promise((resolve) => {
         // Cleanup database connection and files
-        db.close(() => {
-            if (fs.existsSync(TEST_DB_PATH)) {
-                fs.unlinkSync(TEST_DB_PATH);
-            }
-            if (fs.existsSync(TEST_DB_DIR)) {
-                fs.rmdirSync(TEST_DB_DIR);
-            }
-            done();
-        });
-    });
+        if (db) {
+            db.close(() => {
+                if (fs.existsSync(TEST_DB_PATH)) {
+                    fs.unlinkSync(TEST_DB_PATH);
+                }
+                if (fs.existsSync(TEST_DB_DIR)) {
+                    fs.rmSync(TEST_DB_DIR, { recursive: true });
+                }
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    }));
 
     // Basic test to verify server is working
     describe("Basic Routes", () => {
