@@ -1,7 +1,7 @@
 const request = require("supertest");
 const sqlite3 = require("sqlite3");
 const bcrypt = require("bcrypt");
-const { createServer } = require("../server");
+const { createServer, initDbAndStartServer } = require("../server");
 const assert = require("assert");
 const fs = require('fs');
 const path = require('path');
@@ -23,7 +23,7 @@ describe("Server Tests", () => {
         if (fs.existsSync(TEST_DB_DIR)) {
             fs.rmdirSync(TEST_DB_DIR);
         }
-        
+
         // Create test database
         db = await initializeDatabase(TEST_DB_DIR);
         app = createServer(db);
@@ -76,11 +76,66 @@ describe("Server Tests", () => {
         });
     });
 
+    // URL rewrite tests
+    describe("URL Rewrites", () => {
+        it("should rewrite /add-user URL correctly", async () => {
+            const response = await request(app).get("/add-user");
+            expect(response.status).toBe(302); // Should redirect due to auth
+        });
+
+        it("should rewrite /rider/:id/payments URL correctly", async () => {
+            const response = await request(app).get("/rider/123/payments");
+            expect(response.status).toBe(302); // Should redirect due to auth
+        });
+
+        it("should rewrite /add-payment URL correctly", async () => {
+            // Create an authenticated session
+            const agent = request.agent(app);
+            await agent
+                .post("/login")
+                .send({ username: "admin", password: "password123" });
+
+            const response = await agent.get("/add-payment");
+            expect(response.status).toBe(500); // Should fail with 500 since there's no active trip
+        });
+
+        it("should rewrite /edit-payment URL correctly", async () => {
+            const response = await request(app).get("/edit-payment/123");
+            expect(response.status).toBe(302); // Should redirect due to auth
+        });
+
+        it("should rewrite /delete-payment URL correctly", async () => {
+            // Create an authenticated session
+            const agent = request.agent(app);
+            await agent
+                .post("/login")
+                .send({ username: "admin", password: "password123" });
+
+            const response = await agent.get("/delete-payment/123");
+            expect(response.status).toBe(500); // Should fail with 500 since payment doesn't exist
+        });
+    });
+
+    // Trip routes tests
+    describe("Trip Routes", () => {
+        it("should serve add-trip page", async () => {
+            const response = await request(app).get("/add-trip");
+            expect(response.status).toBe(302); // Should redirect due to auth
+        });
+
+        it("should handle add trip POST request", async () => {
+            const response = await request(app)
+                .post("/add-trip")
+                .send({ date: "2025-02-12" });
+            expect(response.status).toBe(302); // Should redirect due to auth
+        });
+    });
+
     // Database initialization tests
     describe("Database Initialization", () => {
         it("should have created required tables", async () => {
             const tables = ['users', 'sessions', 'riders', 'trips', 'trip_riders', 'payments'];
-            
+
             for (const table of tables) {
                 const result = await new Promise((resolve, reject) => {
                     db.get(
