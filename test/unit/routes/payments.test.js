@@ -29,12 +29,6 @@ describe('Payment Routes', () => {
             sendReceiptEmail: jest.fn().mockResolvedValue(true)
         };
 
-        // Mock render method
-        app.use((req, res, next) => {
-            res.render = jest.fn().mockImplementation(() => res.sendStatus(200));
-            next();
-        });
-
         // Create router with mocked dependencies
         const paymentRouter = createPaymentRouter(mockDb, mockEmailService);
         app.use('/payments', paymentRouter);
@@ -42,7 +36,6 @@ describe('Payment Routes', () => {
 
     describe('Payment Creation', () => {
         it('should create a new payment and redirect', async () => {
-            // Set up sequential mocks
             mockDb.get
                 .mockImplementationOnce((query, params, callback) => {
                     callback(null, { id: 1, is_active: 1 }); // Active trip
@@ -58,8 +51,64 @@ describe('Payment Routes', () => {
                     amount: '150.00'
                 });
 
-            expect(response.status).toBe(302); // Expect redirect
+            expect(response.status).toBe(302);
             expect(mockDb.run).toHaveBeenCalled();
+        });
+
+        it('should render add payment form', async () => {
+            const response = await request(app).get('/payments/add/1');
+            expect(response.status).toBe(200);
+            expect(response.statusCode).toBe(200);
+        });
+    });
+
+    describe('Payment Editing', () => {
+        it('should render edit payment form', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, {
+                id: 1,
+                amount: 100,
+                date: '2024-02-11',
+                rider_id: 1
+            }));
+
+            const response = await request(app).get('/payments/edit/1');
+            expect(response.status).toBe(200);
+            expect(response.statusCode).toBe(200);
+        });
+
+        it('should handle database error in edit form retrieval', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).get('/payments/edit/1');
+            expect(response.status).toBe(500);
+        });
+
+        it('should update payment and redirect', async () => {
+            mockDb.run.mockImplementationOnce((q, p, cb) => cb(null));
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, { rider_id: 1 }));
+
+            const response = await request(app)
+                .post('/payments/edit/1')
+                .send({
+                    date: '2024-02-11',
+                    amount: '200.00'
+                });
+
+            expect(response.status).toBe(302);
+            expect(mockDb.run).toHaveBeenCalled();
+        });
+
+        it('should handle database error in payment update', async () => {
+            mockDb.run.mockImplementationOnce((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app)
+                .post('/payments/edit/1')
+                .send({
+                    date: '2024-02-11',
+                    amount: '200.00'
+                });
+
+            expect(response.status).toBe(500);
         });
     });
 
@@ -75,24 +124,50 @@ describe('Payment Routes', () => {
                 ]);
             });
 
-            const response = await request(app)
-                .get('/payments/history/1');
-
+            const response = await request(app).get('/payments/history/1');
             expect(response.status).toBe(200);
             expect(mockDb.get).toHaveBeenCalled();
             expect(mockDb.all).toHaveBeenCalled();
         });
     });
 
+    describe('Payment Deletion', () => {
+        it('should delete payment and redirect', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, { rider_id: 1 }));
+            mockDb.run.mockImplementationOnce((q, p, cb) => cb(null));
+
+            const response = await request(app).post('/payments/delete/1');
+            expect(response.status).toBe(302);
+            expect(mockDb.run).toHaveBeenCalledWith(
+                expect.stringContaining('DELETE FROM payments'),
+                expect.any(Array),
+                expect.any(Function)
+            );
+        });
+
+        it('should handle rider lookup error in deletion', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).post('/payments/delete/1');
+            expect(response.status).toBe(500);
+        });
+
+        it('should handle delete query error', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, { rider_id: 1 }));
+            mockDb.run.mockImplementationOnce((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).post('/payments/delete/1');
+            expect(response.status).toBe(500);
+        });
+    });
+
     describe('Error Handling', () => {
         it('should handle missing rider error in payment history', async () => {
             mockDb.get.mockImplementation((query, params, callback) => {
-                callback(null, null); // No rider found
+                callback(null, null);
             });
 
-            const response = await request(app)
-                .get('/payments/history/999');
-            
+            const response = await request(app).get('/payments/history/999');
             expect(response.status).toBe(404);
             expect(response.text).toBe('Rider not found');
         });
@@ -102,9 +177,7 @@ describe('Payment Routes', () => {
                 callback(new Error('Database error'));
             });
 
-            const response = await request(app)
-                .get('/payments/history/1');
-            
+            const response = await request(app).get('/payments/history/1');
             expect(response.status).toBe(500);
             expect(response.text).toBe('Error retrieving rider');
         });
@@ -118,21 +191,22 @@ describe('Payment Routes', () => {
                 callback(new Error('Database error'));
             });
 
-            const response = await request(app)
-                .get('/payments/history/1');
-            
+            const response = await request(app).get('/payments/history/1');
             expect(response.status).toBe(500);
             expect(response.text).toBe('Error retrieving payments');
         });
 
         it('should handle missing active trip in payment creation', async () => {
             mockDb.get.mockImplementation((query, params, callback) => {
-                callback(null, null); // No active trip
+                callback(null, null);
             });
 
             const response = await request(app)
                 .post('/payments/add/1')
-                .send({ date: '2024-02-11', amount: '100' });
+                .send({
+                    date: '2024-02-11',
+                    amount: '100'
+                });
             
             expect(response.status).toBe(404);
             expect(response.text).toBe('No active trip found');
@@ -141,7 +215,7 @@ describe('Payment Routes', () => {
         it('should handle email service errors', async () => {
             mockDb.get
                 .mockImplementationOnce((query, params, callback) => {
-                    callback(null, { id: 1, is_active: 1 }); // Active trip
+                    callback(null, { id: 1, is_active: 1 });
                 })
                 .mockImplementationOnce((query, params, callback) => {
                     callback(null, { id: 1, name: 'Test', email: 'test@test.com' });
@@ -151,52 +225,20 @@ describe('Payment Routes', () => {
 
             const response = await request(app)
                 .post('/payments/add/1')
-                .send({ date: '2024-02-11', amount: '100' });
+                .send({
+                    date: '2024-02-11',
+                    amount: '100'
+                });
 
-            expect(response.status).toBe(302); // Should still redirect
+            expect(response.status).toBe(302);
             expect(mockEmailService.sendReceiptEmail).toHaveBeenCalled();
-        });
-
-        it('should handle payment deletion database errors', async () => {
-            mockDb.get.mockImplementation((query, params, callback) => {
-                callback(new Error('Database error'));
-            });
-
-            const response = await request(app)
-                .post('/payments/delete/1');
-
-            expect(response.status).toBe(500);
-        });
-
-        it('should handle payment update database errors', async () => {
-            mockDb.run.mockImplementation((query, params, callback) => {
-                callback(new Error('Database error'));
-            });
-
-            const response = await request(app)
-                .post('/payments/edit/1')
-                .send({ date: '2024-02-11', amount: '100' });
-
-            expect(response.status).toBe(500);
         });
     });
 
     describe('Email Receipt Generation', () => {
         it('should format payment receipt correctly', async () => {
-            const mockRider = {
-                id: 1,
-                name: 'Test Rider',
-                email: 'test@test.com'
-            };
-
-            // Log request data for verification
-            app.use((req, res, next) => {
-                console.log('Request body:', req.body);
-                next();
-            });
-
             const testDate = '2024-02-11';
-            const testAmount = '100';
+            const testAmount = '100.00';
 
             mockDb.get
                 .mockImplementationOnce((query, params, callback) => {
@@ -205,7 +247,7 @@ describe('Payment Routes', () => {
 
             const response = await request(app)
                 .post('/payments/add/1')
-                .type('form')  // Explicitly set content type
+                .type('form')
                 .send({
                     date: testDate,
                     amount: testAmount
@@ -220,25 +262,4 @@ describe('Payment Routes', () => {
             expect(response.status).toBe(302);
         });
     });
-
-    // Test payment creation
-    // Test payment validation
-    // Test balance calculations
-    // Test error cases
-});
-
-// filepath: /home/bmichels/Code/GPT-Bus/test/unit/routes/riders.test.js
-describe('Rider Management', () => {
-    // Test rider CRUD operations
-    // Test data validation
-    // Test error handling
-    // Test relationship with trips
-});
-
-// filepath: /home/bmichels/Code/GPT-Bus/test/unit/routes/trips.test.js
-describe('Trip Management', () => {
-    // Test trip creation and updates
-    // Test seat allocation
-    // Test active trip handling
-    // Test validation rules
 });

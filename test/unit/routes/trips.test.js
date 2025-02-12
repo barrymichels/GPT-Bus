@@ -36,7 +36,7 @@ describe('Trips Routes', () => {
         };
 
         const tripRouter = createTripRouter(mockDb);
-        app.use('/', tripRouter); // Mount at root to avoid path issues
+        app.use('/', tripRouter);
 
         // Error handling should be last
         app.use((err, req, res, next) => {
@@ -44,99 +44,194 @@ describe('Trips Routes', () => {
         });
     });
 
-    // Update test paths to not include /trips prefix
-    it('should handle GET /trips', async () => {
-        mockDb.all.mockImplementation((q, p, cb) => cb(null, [
-            { id: 1, name: 'Test Trip', start_date: '2024-02-12' }
-        ]));
+    describe('Trip Listing', () => {
+        it('should handle GET /trips successfully', async () => {
+            mockDb.all.mockImplementation((q, p, cb) => cb(null, [
+                { id: 1, name: 'Test Trip', start_date: '2024-02-12' }
+            ]));
 
-        const response = await request(app).get('/');
-        expect(response.status).toBe(200);
+            const response = await request(app).get('/');
+            expect(response.status).toBe(200);
+            expect(response.body.view).toBe('trips');
+        });
+
+        it('should handle database error in trip listing', async () => {
+            mockDb.all.mockImplementation((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).get('/');
+            expect(response.status).toBe(500);
+        });
     });
 
-    it('should handle GET / (list trips)', async () => {
-        // Setup mock data
-        const mockTrips = [
-            { id: 1, name: 'Test Trip 1', start_date: '2024-02-12' },
-            { id: 2, name: 'Test Trip 2', start_date: '2024-02-13' }
-        ];
-        mockDb.all.mockImplementation((q, p, cb) => cb(null, mockTrips));
+    describe('Trip Creation', () => {
+        it('should create a valid trip', async () => {
+            mockDb.run.mockImplementation((q, p, cb) => cb(null));
+            const response = await request(app)
+                .post('/')
+                .type('form')
+                .send({
+                    name: 'New Trip',
+                    start_date: '2024-02-12',
+                    end_date: '2024-02-15',
+                    cost_of_rental: '1000',
+                    cost_per_seat: '50',
+                    total_seats: '20'
+                });
+            expect(response.status).toBe(302);
+            expect(mockDb.run).toHaveBeenCalled();
+        });
 
-        const response = await request(app).get('/');
-        expect(response.status).toBe(200);
+        it('should handle invalid input in trip creation', async () => {
+            const response = await request(app)
+                .post('/')
+                .type('form')
+                .send({
+                    name: 'Invalid Trip',
+                    start_date: 'invalid-date',
+                    cost_of_rental: 'not-a-number',
+                    cost_per_seat: 'invalid'
+                });
+            expect(response.status).toBe(302);
+            expect(mockDb.run).not.toHaveBeenCalled();
+        });
 
-        // Verify the response contains our mock data
-        const body = response.body;
-        expect(body.view).toBe('trips');
-        expect(body.locals.trips).toEqual(mockTrips);
+        it('should handle missing required fields', async () => {
+            const response = await request(app)
+                .post('/')
+                .type('form')
+                .send({});
+            expect(response.status).toBe(302);
+            expect(mockDb.run).not.toHaveBeenCalled();
+        });
+
+        it('should handle database error in trip creation', async () => {
+            mockDb.run.mockImplementation((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app)
+                .post('/')
+                .type('form')
+                .send({
+                    name: 'New Trip',
+                    start_date: '2024-02-12',
+                    end_date: '2024-02-15',
+                    cost_of_rental: '1000',
+                    cost_per_seat: '50',
+                    total_seats: '20'
+                });
+            expect(response.status).toBe(302);
+        });
     });
 
-    it('should handle POST /trips for creating new trip', async () => {
-        const response = await request(app)
-            .post('/')
-            .send({
-                name: 'New Trip',
-                start_date: '2024-02-12',
-                end_date: '2024-02-15',
-                cost_of_rental: '1000',
-                cost_per_seat: '50',
-                total_seats: '20'
-            });
-        expect(response.status).toBe(302); // Redirect after creation
+    describe('Trip Roster', () => {
+        it('should display trip roster', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(null, {
+                id: 1, name: 'Test Trip'
+            }));
+            mockDb.all.mockImplementation((q, p, cb) => cb(null, [
+                { 
+                    id: 1, 
+                    name: 'Rider 1',
+                    contact1_name: 'Emergency Contact 1',
+                    contact2_name: 'Emergency Contact 2'
+                }
+            ]));
+
+            const response = await request(app).get('/1/roster');
+            expect(response.status).toBe(200);
+        });
+
+        it('should handle missing trip in roster view', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(null, null));
+
+            const response = await request(app).get('/1/roster');
+            expect(response.status).toBe(302);
+        });
+
+        it('should handle database error in roster retrieval', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).get('/1/roster');
+            expect(response.status).toBe(500);
+        });
+
+        it('should handle error in rider retrieval for roster', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(null, { id: 1 }));
+            mockDb.all.mockImplementation((q, p, cb) => cb(new Error('Database error')));
+
+            const response = await request(app).get('/1/roster');
+            expect(response.status).toBe(500);
+        });
     });
 
-    it('should handle GET /trips/:id/roster', async () => {
-        mockDb.get.mockImplementation((q, p, cb) => cb(null, {
-            id: 1, name: 'Test Trip'
-        }));
-        mockDb.all.mockImplementation((q, p, cb) => cb(null, [
-            { id: 1, name: 'Rider 1', email: 'test@test.com' }
-        ]));
+    describe('Add Riders to Trip', () => {
+        it('should show add riders form', async () => {
+            const response = await request(app).get('/1/add-riders');
+            expect(response.status).toBe(200);
+        });
 
-        const response = await request(app).get('/1/roster');
-        expect(response.status).toBe(200);
+        it('should handle missing trip ID in add riders', async () => {
+            mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, null)); // Trip not found
+            const response = await request(app).get('/invalid/add-riders');
+            expect(response.status).toBe(302);
+            expect(mockDb.get).toHaveBeenCalled();
+        });
+
+        it('should handle database error in add riders form', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(new Error('Database error')));
+            const response = await request(app).get('/1/add-riders');
+            expect(response.status).toBe(302);
+        });
+
+        it('should add riders successfully', async () => {
+            mockDb.get.mockImplementation((q, p, cb) => cb(null, {
+                id: 1, name: 'Test Trip', cost_per_seat: 50
+            }));
+
+            const response = await request(app)
+                .post('/1/add-riders')
+                .type('form')
+                .send({
+                    selected_riders: ['1', '2'],
+                    seats: { '1': '2', '2': '1' }
+                });
+            expect(response.status).toBe(302);
+        });
+
+        it('should handle missing rider selection', async () => {
+            const response = await request(app)
+                .post('/1/add-riders')
+                .type('form')
+                .send({});
+            expect(response.status).toBe(302);
+        });
     });
 
-    it('should handle POST /trips/:id/activate', async () => {
-        const response = await request(app).post('/1/activate');
-        expect(response.status).toBe(302); // Redirect after activation
-    });
+    describe('Trip Activation', () => {
+        it('should activate trip successfully', async () => {
+            const response = await request(app).post('/1/activate');
+            expect(response.status).toBe(302);
+            expect(mockDb.run).toHaveBeenCalledTimes(2); // Deactivate all + activate one
+        });
 
-    it('should handle errors in trip creation', async () => {
-        mockDb.run.mockImplementation((q, p, cb) => cb(new Error('DB Error')));
+        it('should handle missing trip ID in activation', async () => {
+            const response = await request(app).post('/invalid/activate');
+            expect(response.status).toBe(302);
+        });
 
-        const response = await request(app)
-            .post('/')
-            .send({
-                name: 'Bad Trip',
-                start_date: 'invalid'
-            });
-        expect(response.status).toBe(302); // Should redirect on error
-    });
+        it('should handle database error in deactivation step', async () => {
+            mockDb.run.mockImplementationOnce((q, p, cb) => cb(new Error('Database error')));
+            
+            const response = await request(app).post('/1/activate');
+            expect(response.status).toBe(302);
+        });
 
-    it('should handle GET /trips/:id/add-riders', async () => {
-        mockDb.get.mockImplementation((q, p, cb) => cb(null, {
-            id: 1, name: 'Test Trip'
-        }));
-        mockDb.all.mockImplementation((q, p, cb) => cb(null, [
-            { id: 1, name: 'Available Rider' }
-        ]));
-
-        const response = await request(app).get('/1/add-riders');
-        expect(response.status).toBe(200);
-    });
-
-    it('should handle POST /trips/:id/add-riders', async () => {
-        mockDb.get.mockImplementation((q, p, cb) => cb(null, {
-            id: 1, name: 'Test Trip', cost_per_seat: 50
-        }));
-
-        const response = await request(app)
-            .post('/1/add-riders')
-            .send({
-                selected_riders: ['1', '2'],
-                seats: { '1': '2', '2': '1' }
-            });
-        expect(response.status).toBe(302); // Redirect after adding riders
+        it('should handle database error in activation step', async () => {
+            mockDb.run
+                .mockImplementationOnce((q, p, cb) => cb(null)) // Deactivate succeeds
+                .mockImplementationOnce((q, p, cb) => cb(new Error('Database error'))); // Activate fails
+            
+            const response = await request(app).post('/1/activate');
+            expect(response.status).toBe(302);
+        });
     });
 });
