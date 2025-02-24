@@ -17,14 +17,16 @@ block content
                 th.py-3.px-4 Name
                 th(class="py-3 px-4 hidden md:table-cell") Balance
                 th(class="py-3 px-4 hidden md:table-cell") Collected
-                th(class="py-3 px-4 hidden md:table-cell") Instructions
                 th(class="py-3 px-4 text-right hidden md:table-cell") Actions
             tbody
               each rider in riders
                 tr.border-t.border-gray-800.group
                   // Mobile: Entire row clickable
                   td(class="py-3 px-4 cursor-pointer md:cursor-default" onclick=`window.location.href='/edit-rider/${rider.id}'`)
-                    .text-white= rider.name
+                    .flex.items-center.text-white
+                      span= rider.name
+                      if rider.instructions_sent
+                        i.fas.fa-check.text-green-500.ml-2
                     .text-sm.text-gray-400= rider.email
                     // Mobile-only summary info
                     div(class="md:hidden text-sm text-gray-400 mt-1")
@@ -32,8 +34,6 @@ block content
                         span Balance: $#{rider.balance}
                       .flex.justify-between.mt-1
                         span= rider.collected
-                        if rider.instructions_sent
-                          span(class="bg-green-500 text-white text-xs px-2 py-1 rounded") Sent
                       // Mobile-only actions
                       .flex.justify-end.mt-2.space-x-2
                         a(href=`/rider/${rider.id}/payments` class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700") View Payments
@@ -41,9 +41,6 @@ block content
                   // Desktop-only columns
                   td(class="py-3 px-4 text-white hidden md:table-cell") $#{rider.balance}
                   td(class="py-3 px-4 text-white hidden md:table-cell")= rider.collected
-                  td(class="py-3 px-4 hidden md:table-cell")
-                    if rider.instructions_sent
-                      span(class="bg-green-500 text-white text-sm px-2 py-1 rounded") Sent
                   td(class="py-3 px-4 text-right hidden md:table-cell")
                     .space-x-2
                       a(href=`/rider/${rider.id}/payments` class="text-blue-400 hover:text-blue-300") Payments
