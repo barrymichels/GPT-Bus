@@ -15,7 +15,6 @@ block content
             thead
               tr.bg-gray-800.text-gray-300.text-left
                 th.py-3.px-4 Name
-                th(class="py-3 px-4 hidden md:table-cell") Seats
                 th(class="py-3 px-4 hidden md:table-cell") Balance
                 th(class="py-3 px-4 hidden md:table-cell") Collected
                 th(class="py-3 px-4 hidden md:table-cell") Instructions
@@ -30,7 +29,6 @@ block content
                     // Mobile-only summary info
                     div(class="md:hidden text-sm text-gray-400 mt-1")
                       .flex.justify-between
-                        span Seats: #{rider.seats}
                         span Balance: $#{rider.balance}
                       .flex.justify-between.mt-1
                         span= rider.collected
@@ -41,7 +39,6 @@ block content
                         a(href=`/rider/${rider.id}/payments` class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700") View Payments
 
                   // Desktop-only columns
-                  td(class="py-3 px-4 text-white hidden md:table-cell")= rider.seats
                   td(class="py-3 px-4 text-white hidden md:table-cell") $#{rider.balance}
                   td(class="py-3 px-4 text-white hidden md:table-cell")= rider.collected
                   td(class="py-3 px-4 hidden md:table-cell")

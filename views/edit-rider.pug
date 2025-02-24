@@ -40,9 +40,6 @@ block content
         if activeTrip
           // Trip-specific Info
           .mb-4
-            label(for='seats').block.text-sm.font-bold.mb-2.text-white Number of Seats
-            input#seats(type='number', name='seats', min='1', value=rider.seats, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
-          .mb-4
             label(for='balance').block.text-sm.font-bold.mb-2.text-white Starting Balance
             input#balance(type='number', name='balance', min='0', value=rider.balance, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
           .mb-4
