@@ -37,8 +37,8 @@ function createRiderRouter(db) {
             if (!activeTrip) {
                 return res.redirect("/trips");
             }
-            const { name, email, phone, seats, street, city, state, zip, congregation } = req.body;
-            const balance = parseInt(seats) * activeTrip.cost_per_seat;
+            const { name, email, phone, street, city, state, zip, congregation } = req.body;
+            const balance = activeTrip.cost_per_seat; // One seat per rider
 
             db.serialize(() => {
                 db.run(
@@ -49,7 +49,7 @@ function createRiderRouter(db) {
                         const riderId = this.lastID;
                         db.run(
                             "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
-                            [activeTrip.id, riderId, parseInt(seats), balance],
+                            [activeTrip.id, riderId, 1, balance],
                             (err) => {
                                 if (err) throw err;
                                 res.redirect("/dashboard");
@@ -84,7 +84,7 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent, congregation } = req.body;
+        const { name, email, phone, balance, street, city, state, zip, instructions_sent, congregation } = req.body;
         
         db.run(
             "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
@@ -92,8 +92,8 @@ function createRiderRouter(db) {
             (err) => {
                 if (err) throw err;
                 db.run(
-                    "UPDATE trip_riders SET seats = ?, balance = ?, instructions_sent = ? WHERE rider_id = ?",
-                    [seats, balance, instructions_sent ? 1 : 0, req.params.id],
+                    "UPDATE trip_riders SET balance = ?, instructions_sent = ? WHERE rider_id = ?",
+                    [balance, instructions_sent ? 1 : 0, req.params.id],
                     (err) => {
                         if (err) throw err;
                         res.redirect("/dashboard");
