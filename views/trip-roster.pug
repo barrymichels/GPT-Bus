@@ -85,6 +85,9 @@ html(lang="en")
               if rider.other_phone
                 br
                 | Alt: #{rider.other_phone}
+              if rider.congregation
+                br
+                | Congregation: #{rider.congregation}
             td
               if rider.contact1
                 strong #{rider.contact1.name}
