@@ -5,7 +5,7 @@ block content
     .bg-gray-700.p-6.rounded-lg.shadow-lg
       if activeTrip
         h2.text-xl.font-bold.text-white.mb-4 Editing Rider for #{activeTrip.name}
-      form(method='post', action='/edit-rider/' + rider.id)
+      form(method='post', action='/edit-rider/' + rider.id, id="editRiderForm")
         // Basic Info
         .mb-4
           label(for='name').block.text-sm.font-bold.mb-2.text-white Name
@@ -43,7 +43,7 @@ block content
         
         .flex.flex-wrap.gap-3.justify-end
           button(type='submit', class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Update Rider
-          a(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Emergency Contacts
+          a#emergencyContactsLink(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Emergency Contacts
           a(href='/dashboard', class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Back
           button(type='button', class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors", onclick="showDeleteModal()") Delete Rider
 
@@ -57,7 +57,64 @@ block content
         button(onclick="deleteCompletely()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded") Delete Completely from System
         button(onclick="hideDeleteModal()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded") Cancel
 
+  // Unsaved Changes Modal
+  #unsavedModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center
+    .bg-gray-800.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4
+      h3.text-xl.font-bold.text-white.mb-4 Unsaved Changes
+      p.text-gray-300.mb-6 You have unsaved changes. What would you like to do?
+      .space-y-4
+        button#saveAndContinue(class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Save Changes and Continue
+        button#discardAndContinue(class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded") Discard Changes and Continue
+        button#cancelNavigation(class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded") Stay on This Page
+
   script.
+    let formChanged = false;
+    let navigatingTo = '';
+
+    // Track form changes
+    document.getElementById('editRiderForm').addEventListener('input', () => {
+      formChanged = true;
+    });
+
+    // Handle Emergency Contacts link click
+    document.getElementById('emergencyContactsLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      navigatingTo = e.target.href;
+      if (formChanged) {
+        showUnsavedModal();
+      } else {
+        window.location.href = navigatingTo;
+      }
+    });
+
+    function showUnsavedModal() {
+      document.getElementById('unsavedModal').classList.remove('hidden');
+    }
+
+    function hideUnsavedModal() {
+      document.getElementById('unsavedModal').classList.add('hidden');
+    }
+
+    document.getElementById('saveAndContinue').addEventListener('click', () => {
+      // Submit the form with a redirect parameter
+      const form = document.getElementById('editRiderForm');
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'redirect';
+      input.value = navigatingTo;
+      form.appendChild(input);
+      form.submit();
+    });
+
+    document.getElementById('discardAndContinue').addEventListener('click', () => {
+      hideUnsavedModal();
+      window.location.href = navigatingTo;
+    });
+
+    document.getElementById('cancelNavigation').addEventListener('click', () => {
+      hideUnsavedModal();
+    });
+
     function showDeleteModal() {
       document.getElementById('deleteModal').classList.remove('hidden');
     }

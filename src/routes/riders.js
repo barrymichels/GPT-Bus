@@ -199,7 +199,7 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, street, city, state, zip, instructions_sent, congregation } = req.body;
+        const { name, email, phone, street, city, state, zip, instructions_sent, congregation, redirect } = req.body;
         
         db.run(
             "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
@@ -211,7 +211,8 @@ function createRiderRouter(db) {
                     [instructions_sent ? 1 : 0, req.params.id],
                     (err) => {
                         if (err) throw err;
-                        res.redirect("/dashboard");
+                        // If redirect parameter is present, use it, otherwise go to dashboard
+                        res.redirect(redirect || "/dashboard");
                     }
                 );
             }
