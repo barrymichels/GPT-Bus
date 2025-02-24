@@ -106,11 +106,10 @@ function createTripRouter(db) {
 
             riders.forEach(riderId => {
                 const seats = parseInt(seatsForRider[riderId]) || 1;
-                const balance = seats * trip.cost_per_seat;
                 
                 db.run(
-                    "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
-                    [tripId, riderId, seats, balance],
+                    "INSERT INTO trip_riders (trip_id, rider_id, seats) VALUES (?, ?, ?)",
+                    [tripId, riderId, seats],
                     (err) => {
                         completed++;
                         if (completed === total) {

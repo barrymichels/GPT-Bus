@@ -24,7 +24,7 @@ function createPaymentRouter(db, emailService) {
                         return res.status(404).send('Rider not found');
                     }
                     db.all(
-                        "SELECT * FROM payments WHERE rider_id = ?",
+                        "SELECT p.*, t.id as trip_id FROM payments p JOIN trips t ON p.trip_id = t.id WHERE p.rider_id = ? AND t.is_active = 1",
                         [req.params.id],
                         (err, payments) => {
                             if (err) {
@@ -155,15 +155,17 @@ async function sendPaymentReceipt(db, riderId, date, amount, tripId) {
             (err, rider) => {
                 if (err) return reject(err);
                 db.all(
-                    "SELECT * FROM payments WHERE rider_id = ?",
+                    "SELECT p.*, t.id as trip_id FROM payments p JOIN trips t ON p.trip_id = t.id WHERE p.rider_id = ? AND t.is_active = 1",
                     [riderId],
                     (err, payments) => {
                         if (err) return reject(err);
                         
-                        const totalPayments = payments.reduce(
-                            (total, payment) => total + parseFloat(payment.amount),
-                            0
-                        );
+                        const totalPayments = payments
+                            .filter(payment => payment.trip_id === tripId)
+                            .reduce(
+                                (total, payment) => total + parseFloat(payment.amount),
+                                0
+                            );
                         const currentBalance = parseFloat(totalPayments) + parseFloat(amount);
 
                         const transporter = process.env.NODE_ENV === "test"

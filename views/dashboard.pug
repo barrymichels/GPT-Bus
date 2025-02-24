@@ -42,14 +42,7 @@ block content
                   td(class="py-3 px-4 text-white hidden md:table-cell") $#{rider.balance}
                   td(class="py-3 px-4 text-white hidden md:table-cell")= rider.collected
                   td(class="py-3 px-4 text-right hidden md:table-cell")
-                    .space-x-2
-                      a(href=`/rider/${rider.id}/payments` class="text-blue-400 hover:text-blue-300") Payments
-                      a(href=`/edit-rider/${rider.id}` class="text-blue-400 hover:text-blue-300") Edit
-                      button(
-                        type="button" 
-                        onclick=`showDeleteModal(${rider.id}, "${rider.name}")` 
-                        class="text-red-400 hover:text-red-300"
-                      ) Delete
+                    a(href=`/rider/${rider.id}/payments` class="text-blue-400 hover:text-blue-300") Payments
       else
         .text-center.text-gray-400.py-8 No riders found for this trip.
 
@@ -79,39 +72,3 @@ block content
           i.fas.fa-exclamation-triangle.mr-2
           | No active trip selected. 
           a(href="/trips" class="underline ml-2") Select a trip
-
-  #deleteModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center(style="z-index: 50")
-    .bg-gray-800.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4
-      h3.text-xl.font-bold.text-white.mb-4
-        | Delete 
-        span#riderName
-      p.text-gray-300.mb-6 How would you like to remove this rider?
-      .space-y-4
-        button(onclick="deleteFromTrip()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded") Remove from Current Trip Only
-        button(onclick="deleteCompletely()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded") Delete Completely from System
-        button(onclick="hideDeleteModal()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded") Cancel
-
-  script.
-    let currentRiderId;
-
-    function showDeleteModal(riderId, riderName) {
-      currentRiderId = riderId;
-      document.getElementById('riderName').textContent = riderName;
-      document.getElementById('deleteModal').classList.remove('hidden');
-    }
-
-    function hideDeleteModal() {
-      document.getElementById('deleteModal').classList.add('hidden');
-    }
-
-    function deleteFromTrip() {
-      if (currentRiderId) {
-        window.location.href = `/delete-rider/${currentRiderId}/from-trip`;
-      }
-    }
-
-    function deleteCompletely() {
-      if (currentRiderId && confirm("Are you absolutely sure? This will permanently delete all rider data and cannot be undone.")) {
-        window.location.href = `/delete-rider/${currentRiderId}/complete`;
-      }
-    }
