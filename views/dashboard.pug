@@ -27,7 +27,8 @@ block content
                       span= rider.name
                       if rider.instructions_sent
                         i.fas.fa-check.text-green-500.ml-2
-                    .text-sm.text-gray-400= rider.email
+                    if rider.congregation
+                      .text-sm.text-gray-400= rider.congregation
                     // Mobile-only summary info
                     div(class="md:hidden text-sm text-gray-400 mt-1")
                       .flex.justify-between
