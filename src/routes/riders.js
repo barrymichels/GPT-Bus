@@ -37,13 +37,13 @@ function createRiderRouter(db) {
             if (!activeTrip) {
                 return res.redirect("/trips");
             }
-            const { name, email, phone, seats, street, city, state, zip } = req.body;
+            const { name, email, phone, seats, street, city, state, zip, congregation } = req.body;
             const balance = parseInt(seats) * activeTrip.cost_per_seat;
 
             db.serialize(() => {
                 db.run(
-                    "INSERT INTO riders (name, email, phone, street, city, state, zip) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    [name, email, phone, street || "", city || "", state || "", zip || ""],
+                    "INSERT INTO riders (name, email, phone, street, city, state, zip, congregation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [name, email, phone, street || "", city || "", state || "", zip || "", congregation || ""],
                     function (err) {
                         if (err) throw err;
                         const riderId = this.lastID;
@@ -84,11 +84,11 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent } = req.body;
+        const { name, email, phone, seats, balance, street, city, state, zip, instructions_sent, congregation } = req.body;
         
         db.run(
-            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ? WHERE id = ?",
-            [name, email, phone, street, city, state, zip, req.params.id],
+            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
+            [name, email, phone, street, city, state, zip, congregation || "", req.params.id],
             (err) => {
                 if (err) throw err;
                 db.run(
