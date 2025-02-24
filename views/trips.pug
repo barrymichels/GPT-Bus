@@ -14,8 +14,11 @@ block content
           .bg-white.rounded-lg.shadow-lg.p-6
             .flex.justify-between.items-start.mb-4
               h2.text-xl.font-bold= trip.name
-              if trip.is_active
-                span.bg-green-500.text-white.text-sm.px-2.py-1.rounded Active
+              .flex.items-center.space-x-2
+                if trip.is_active
+                  span.bg-green-500.text-white.text-sm.px-2.py-1.rounded Active
+                a(href=`/trip/${trip.id}/edit` class="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-full" title="Edit Trip")
+                  i.fas.fa-pencil-alt
             .space-y-2.text-gray-600
               p
                 strong Start Date: 

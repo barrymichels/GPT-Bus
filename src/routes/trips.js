@@ -21,6 +21,34 @@ function createTripRouter(db) {
         res.render("add-trip");
     });
 
+    // Edit trip form
+    router.get("/:id/edit", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE id = ?", [req.params.id], (err, trip) => {
+            if (err || !trip) return res.redirect("/trips");
+            res.render("edit-trip", { trip });
+        });
+    });
+
+    // Update trip
+    router.post("/:id/edit", isAuthenticated, (req, res) => {
+        const { name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats } = req.body;
+        if (!name || isNaN(Date.parse(start_date)) || isNaN(parseFloat(cost_of_rental)) || isNaN(parseFloat(cost_per_seat))) {
+            return res.redirect("/trips");
+        }
+
+        db.run(
+            "UPDATE trips SET name = ?, start_date = ?, end_date = ?, cost_of_rental = ?, cost_per_seat = ?, total_seats = ? WHERE id = ?",
+            [name, start_date, end_date, parseFloat(cost_of_rental), parseFloat(cost_per_seat), total_seats, req.params.id],
+            (err) => {
+                if (err) {
+                    console.error('Database error:', err);
+                    return res.redirect("/trips");
+                }
+                res.redirect("/trips");
+            }
+        );
+    });
+
     // Create trip
     router.post("/", isAuthenticated, (req, res) => {
         const { name, start_date, end_date, cost_of_rental, cost_per_seat, total_seats } = req.body;

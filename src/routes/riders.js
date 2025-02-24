@@ -38,7 +38,6 @@ function createRiderRouter(db) {
                 return res.redirect("/trips");
             }
             const { name, email, phone, street, city, state, zip, congregation } = req.body;
-            const balance = activeTrip.cost_per_seat; // One seat per rider
 
             db.serialize(() => {
                 db.run(
@@ -48,8 +47,8 @@ function createRiderRouter(db) {
                         if (err) throw err;
                         const riderId = this.lastID;
                         db.run(
-                            "INSERT INTO trip_riders (trip_id, rider_id, seats, balance) VALUES (?, ?, ?, ?)",
-                            [activeTrip.id, riderId, 1, balance],
+                            "INSERT INTO trip_riders (trip_id, rider_id, seats, instructions_sent) VALUES (?, ?, ?, ?)",
+                            [activeTrip.id, riderId, 1, 0],
                             (err) => {
                                 if (err) throw err;
                                 res.redirect("/dashboard");
@@ -61,14 +60,65 @@ function createRiderRouter(db) {
         });
     });
 
+    // Dashboard data
+    router.get("/dashboard", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) throw err;
+            if (!activeTrip) {
+                return res.render("dashboard", { activeTrip: null });
+            }
+
+            db.all(`
+                SELECT 
+                    r.*, 
+                    tr.instructions_sent,
+                    COALESCE(SUM(p.amount), 0) as total_paid,
+                    CASE 
+                        WHEN COALESCE(SUM(p.amount), 0) >= ? THEN 'Paid in Full'
+                        WHEN COALESCE(SUM(p.amount), 0) > 0 THEN 'Partial Payment'
+                        ELSE 'No Payment'
+                    END as collected
+                FROM riders r
+                LEFT JOIN trip_riders tr ON r.id = tr.rider_id
+                LEFT JOIN trips t ON tr.trip_id = t.id
+                LEFT JOIN payments p ON r.id = p.rider_id AND p.trip_id = t.id
+                WHERE t.id = ? AND t.is_active = 1
+                GROUP BY r.id
+                ORDER BY r.name`,
+                [activeTrip.cost_per_seat, activeTrip.id],
+                (err, riders) => {
+                    if (err) throw err;
+                    
+                    // Ensure total_paid is a number for each rider
+                    riders.forEach(rider => {
+                        rider.total_paid = parseFloat(rider.total_paid) || 0;
+                        rider.balance = parseFloat(activeTrip.cost_per_seat) - rider.total_paid;
+                    });
+                    
+                    res.render("dashboard", { 
+                        activeTrip: {
+                            ...activeTrip,
+                            cost_per_seat: parseFloat(activeTrip.cost_per_seat) || 0
+                        }, 
+                        riders 
+                    });
+                }
+            );
+        });
+    });
+
     // Edit rider form
     router.get("/:id/edit", isAuthenticated, (req, res) => {
         db.get(
-            `SELECT r.*, tr.seats, tr.balance, tr.instructions_sent 
+            `SELECT r.*, tr.instructions_sent,
+                    t.cost_per_seat,
+                    COALESCE(SUM(p.amount), 0) as total_paid
              FROM riders r
              LEFT JOIN trip_riders tr ON r.id = tr.rider_id
              LEFT JOIN trips t ON tr.trip_id = t.id AND t.is_active = 1
-             WHERE r.id = ?`,
+             LEFT JOIN payments p ON r.id = p.rider_id
+             WHERE r.id = ?
+             GROUP BY r.id`,
             [req.params.id],
             (err, rider) => {
                 if (err) throw err;
@@ -76,6 +126,8 @@ function createRiderRouter(db) {
                 
                 db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
                     if (err) throw err;
+                    // Calculate remaining balance
+                    rider.balance = rider.cost_per_seat - rider.total_paid;
                     res.render("edit-rider", { rider, activeTrip });
                 });
             }
@@ -84,7 +136,7 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, balance, street, city, state, zip, instructions_sent, congregation } = req.body;
+        const { name, email, phone, street, city, state, zip, instructions_sent, congregation } = req.body;
         
         db.run(
             "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
@@ -92,8 +144,8 @@ function createRiderRouter(db) {
             (err) => {
                 if (err) throw err;
                 db.run(
-                    "UPDATE trip_riders SET balance = ?, instructions_sent = ? WHERE rider_id = ?",
-                    [balance, instructions_sent ? 1 : 0, req.params.id],
+                    "UPDATE trip_riders SET instructions_sent = ? WHERE rider_id = ?",
+                    [instructions_sent ? 1 : 0, req.params.id],
                     (err) => {
                         if (err) throw err;
                         res.redirect("/dashboard");
