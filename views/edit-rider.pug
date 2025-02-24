@@ -8,42 +8,42 @@ block content
       form(method='post', action='/edit-rider/' + rider.id)
         // Basic Info
         .mb-4
-          label(for='name').block.text-sm.font-bold.mb-2 Name
+          label(for='name').block.text-sm.font-bold.mb-2.text-white Name
           input#name(type='text', name='name', value=rider.name, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='email').block.text-sm.font-bold.mb-2 Email
+          label(for='email').block.text-sm.font-bold.mb-2.text-white Email
           input#email(type='email', name='email', value=rider.email, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='phone').block.text-sm.font-bold.mb-2 Mobile Phone
+          label(for='phone').block.text-sm.font-bold.mb-2.text-white Mobile Phone
           input#phone(type='tel', name='phone', value=rider.phone, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='other_phone').block.text-sm.font-bold.mb-2 Other Phone
+          label(for='other_phone').block.text-sm.font-bold.mb-2.text-white Other Phone
           input#other_phone(type='tel', name='other_phone', value=rider.other_phone, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         
         // Address
         .mb-4
-          label(for='street').block.text-sm.font-bold.mb-2 Street Address
+          label(for='street').block.text-sm.font-bold.mb-2.text-white Street Address
           input#street(type='text', name='street', value=rider.street, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='city').block.text-sm.font-bold.mb-2 City
+          label(for='city').block.text-sm.font-bold.mb-2.text-white City
           input#city(type='text', name='city', value=rider.city, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='state').block.text-sm.font-bold.mb-2 State
+          label(for='state').block.text-sm.font-bold.mb-2.text-white State
           input#state(type='text', name='state', value=rider.state, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         .mb-4
-          label(for='zip').block.text-sm.font-bold.mb-2 Zip Code
+          label(for='zip').block.text-sm.font-bold.mb-2.text-white Zip Code
           input#zip(type='text', name='zip', value=rider.zip, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         
         if activeTrip
           // Trip-specific Info
           .mb-4
-            label(for='seats').block.text-sm.font-bold.mb-2 Number of Seats
+            label(for='seats').block.text-sm.font-bold.mb-2.text-white Number of Seats
             input#seats(type='number', name='seats', min='1', value=rider.seats, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
           .mb-4
-            label(for='balance').block.text-sm.font-bold.mb-2 Starting Balance
+            label(for='balance').block.text-sm.font-bold.mb-2.text-white Starting Balance
             input#balance(type='number', name='balance', min='0', value=rider.balance, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
           .mb-4
-            label(class="flex items-center space-x-2")
+            label(class="flex items-center space-x-2 text-white")
               input(type='checkbox', name='instructions_sent', checked=rider.instructions_sent === 1, class="form-checkbox h-5 w-5 text-blue-500")
               span.text-sm.font-bold Instructions Sent
         

@@ -36,8 +36,6 @@ block content
                         span= rider.collected
                         if rider.instructions_sent
                           span(class="bg-green-500 text-white text-xs px-2 py-1 rounded") Sent
-                        else
-                          span(class="bg-yellow-500 text-white text-xs px-2 py-1 rounded") Pending
                       // Mobile-only actions
                       .flex.justify-end.mt-2.space-x-2
                         a(href=`/rider/${rider.id}/payments` class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700") View Payments
@@ -49,8 +47,6 @@ block content
                   td(class="py-3 px-4 hidden md:table-cell")
                     if rider.instructions_sent
                       span(class="bg-green-500 text-white text-sm px-2 py-1 rounded") Sent
-                    else
-                      span(class="bg-yellow-500 text-white text-sm px-2 py-1 rounded") Pending
                   td(class="py-3 px-4 text-right hidden md:table-cell")
                     .space-x-2
                       a(href=`/rider/${rider.id}/payments` class="text-blue-400 hover:text-blue-300") Payments

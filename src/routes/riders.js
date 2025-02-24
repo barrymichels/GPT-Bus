@@ -64,11 +64,20 @@ function createRiderRouter(db) {
     // Edit rider form
     router.get("/:id/edit", isAuthenticated, (req, res) => {
         db.get(
-            "SELECT * FROM riders WHERE id = ?",
+            `SELECT r.*, tr.seats, tr.balance, tr.instructions_sent 
+             FROM riders r
+             LEFT JOIN trip_riders tr ON r.id = tr.rider_id
+             LEFT JOIN trips t ON tr.trip_id = t.id AND t.is_active = 1
+             WHERE r.id = ?`,
             [req.params.id],
             (err, rider) => {
                 if (err) throw err;
-                res.render("edit-rider", { rider });
+                if (!rider) return res.redirect("/dashboard");
+                
+                db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+                    if (err) throw err;
+                    res.render("edit-rider", { rider, activeTrip });
+                });
             }
         );
     });
