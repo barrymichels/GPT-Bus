@@ -19,9 +19,6 @@ block content
         .mb-4
           label(for='phone').block.text-sm.font-bold.mb-2.text-white Mobile Phone
           input#phone(type='tel', name='phone', value=rider.phone, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
-        .mb-4
-          label(for='other_phone').block.text-sm.font-bold.mb-2.text-white Other Phone
-          input#other_phone(type='tel', name='other_phone', value=rider.other_phone, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
         
         // Address
         .mb-4
@@ -44,11 +41,11 @@ block content
               input(type='checkbox', name='instructions_sent', checked=rider.instructions_sent === 1, class="form-checkbox h-5 w-5 text-blue-500")
               span.text-sm.font-bold Instructions Sent
         
-        .flex.items-center.justify-between
-          button(type='submit', class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Update Rider
-          a(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Emergency Contacts
-          a(href='/dashboard', class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline") Back
-          button(type='button', class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline", onclick="showDeleteModal()") Delete Rider
+        .flex.flex-wrap.gap-3.justify-end
+          button(type='submit', class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Update Rider
+          a(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Emergency Contacts
+          a(href='/dashboard', class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Back
+          button(type='button', class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors", onclick="showDeleteModal()") Delete Rider
 
   // Delete Confirmation Modal
   #deleteModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center
