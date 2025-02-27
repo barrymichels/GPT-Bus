@@ -16,7 +16,6 @@ block content
                     span.ml-2 Select All
                 th.py-3.px-4 Name
                 th.py-3.px-4 Email
-                th.py-3.px-4 Seats
             tbody
               each rider in availableRiders
                 tr.border-t.border-gray-800
@@ -29,14 +28,6 @@ block content
                     )
                   td.py-3.px-4.text-white= rider.name
                   td.py-3.px-4.text-white= rider.email
-                  td.py-3.px-4
-                    input(
-                      type="number"
-                      name=`seats[${rider.id}]`
-                      min="1"
-                      value="1"
-                      class="w-20 bg-gray-700 border border-gray-600 rounded py-1 px-2 text-white"
-                    )
         
         .flex.justify-end.space-x-4
           a(href="/trips" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors") Cancel
