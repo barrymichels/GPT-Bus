@@ -219,7 +219,24 @@ function createRiderRouter(db) {
         );
     });
 
-    // Delete rider
+    // Remove rider from current trip only
+    router.get("/:id/from-trip", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) throw err;
+            if (!activeTrip) return res.redirect("/dashboard");
+            
+            db.run(
+                "DELETE FROM trip_riders WHERE rider_id = ? AND trip_id = ?",
+                [req.params.id, activeTrip.id],
+                (err) => {
+                    if (err) throw err;
+                    res.redirect("/dashboard");
+                }
+            );
+        });
+    });
+
+    // Delete rider completely
     router.get("/:id/delete", isAuthenticated, (req, res) => {
         db.get(
             "SELECT COUNT(*) AS paymentCount FROM payments WHERE rider_id = ?",

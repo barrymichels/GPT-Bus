@@ -88,7 +88,11 @@ function createServer(db) {
         riderRouter.handle(req, res);
     });
     app.use('/delete-rider', (req, res) => {
-        req.url = req.url.replace('/delete-rider', '/riders') + '/delete';
+        if (req.url.includes('/from-trip')) {
+            req.url = req.url.replace('/delete-rider', '/riders').replace('/from-trip', '/from-trip');
+        } else {
+            req.url = req.url.replace('/delete-rider', '/riders') + '/delete';
+        }
         riderRouter.handle(req, res);
     });
     app.use('/rider', riderRouter);
