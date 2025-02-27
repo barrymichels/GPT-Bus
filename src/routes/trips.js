@@ -91,7 +91,6 @@ function createTripRouter(db) {
     router.post("/:id/add-riders", isAuthenticated, (req, res, next) => {
         const tripId = req.params.id;
         const selectedRiders = req.body.selected_riders;
-        const seatsForRider = req.body.seats;
         
         if (!selectedRiders || !tripId) {
             return res.redirect("/trips");
@@ -105,11 +104,9 @@ function createTripRouter(db) {
             const riders = Array.isArray(selectedRiders) ? selectedRiders : [selectedRiders];
 
             riders.forEach(riderId => {
-                const seats = parseInt(seatsForRider[riderId]) || 1;
-                
                 db.run(
-                    "INSERT INTO trip_riders (trip_id, rider_id, seats) VALUES (?, ?, ?)",
-                    [tripId, riderId, seats],
+                    "INSERT INTO trip_riders (trip_id, rider_id, seats) VALUES (?, ?, 1)",
+                    [tripId, riderId],
                     (err) => {
                         completed++;
                         if (completed === total) {
