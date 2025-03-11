@@ -34,7 +34,7 @@ describe('Dashboard Routes', () => {
 
     it('should render dashboard when an active trip exists', async () => {
         // Provide an active trip with required fields
-        const activeTrip = { id: 10, cost_of_rental: 500, total_seats: 20 };
+        const activeTrip = { id: 10, cost_of_rental: 500, total_seats: 20, cost_per_seat: 25 };
         mockDb.get.mockImplementationOnce((q, params, cb) => {
             cb(null, activeTrip);
         });
