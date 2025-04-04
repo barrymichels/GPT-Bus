@@ -9,7 +9,7 @@ describe('Riders Routes', () => {
         app = express();
         app.use(express.urlencoded({ extended: true }));
         app.use((req, res, next) => { req.isAuthenticated = () => true; next(); });
-        
+
         mockDb = {
             get: jest.fn((q, p, cb) => cb(null, { id: 1, name: 'Test Trip', cost_per_seat: 50 })),
             run: jest.fn((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined),
@@ -162,6 +162,38 @@ describe('Riders Routes', () => {
                 expect.any(Array),
                 expect.any(Function)
             );
+        });
+
+        it('should handle GET /riders/:id/complete for complete deletion', async () => {
+            // Mock to clear emergency contacts first
+            mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
+            // Mock to clear payments next
+            mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
+
+            const response = await request(app).get('/riders/1/complete');
+            expect(response.status).toBe(302);
+            expect(mockDb.run).toHaveBeenCalledWith(
+                expect.stringContaining("DELETE FROM emergency_contacts"),
+                ["1"],  // String param as that's what the actual implementation uses
+                expect.any(Function)
+            );
+            expect(mockDb.run).toHaveBeenCalledWith(
+                expect.stringContaining("DELETE FROM payments"),
+                ["1"],  // String param as that's what the actual implementation uses
+                expect.any(Function)
+            );
+            expect(mockDb.run).toHaveBeenCalledWith(
+                expect.stringContaining("DELETE FROM riders"),
+                ["1"],  // String param as that's what the actual implementation uses
+                expect.any(Function)
+            );
+        });
+
+        it('should handle database error in complete deletion', async () => {
+            mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(new Error('Database error')) : undefined);
+
+            const response = await request(app).get('/riders/1/complete');
+            expect(response.status).toBe(500);
         });
     });
 

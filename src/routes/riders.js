@@ -15,15 +15,15 @@ function createRiderRouter(db) {
                 console.error('Database error:', err);
                 return res.render("add-rider", { error: "Database error occurred" });
             }
-            
+
             if (!activeTrip) {
-                return res.render("add-rider", { 
+                return res.render("add-rider", {
                     error: "No active trip selected. Please select a trip first.",
                     showTripLink: true
                 });
             }
-            
-            res.render("add-rider", { 
+
+            res.render("add-rider", {
                 activeTrip,
                 formTitle: `Add New Rider to ${activeTrip.name}`
             });
@@ -188,7 +188,7 @@ function createRiderRouter(db) {
             (err, rider) => {
                 if (err) throw err;
                 if (!rider) return res.redirect("/dashboard");
-                
+
                 db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
                     if (err) throw err;
                     res.render("edit-rider", { rider, activeTrip });
@@ -200,7 +200,7 @@ function createRiderRouter(db) {
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
         const { name, email, phone, street, city, state, zip, instructions_sent, congregation, redirect } = req.body;
-        
+
         db.run(
             "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
             [name, email, phone, street, city, state, zip, congregation || "", req.params.id],
@@ -224,7 +224,7 @@ function createRiderRouter(db) {
         db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
             if (err) throw err;
             if (!activeTrip) return res.redirect("/dashboard");
-            
+
             db.run(
                 "DELETE FROM trip_riders WHERE rider_id = ? AND trip_id = ?",
                 [req.params.id, activeTrip.id],
@@ -252,6 +252,48 @@ function createRiderRouter(db) {
                     (err) => {
                         if (err) throw err;
                         res.redirect("/dashboard");
+                    }
+                );
+            }
+        );
+    });
+
+    // Complete deletion of rider (including emergency contacts)
+    router.get("/:id/complete", isAuthenticated, (req, res) => {
+        const riderId = req.params.id;
+
+        // First delete emergency contacts
+        db.run(
+            "DELETE FROM emergency_contacts WHERE rider_id = ?",
+            [riderId],
+            (err) => {
+                if (err) {
+                    console.error("Error deleting emergency contacts:", err);
+                    return res.status(500).send("Database error occurred");
+                }
+
+                // Then delete payments
+                db.run(
+                    "DELETE FROM payments WHERE rider_id = ?",
+                    [riderId],
+                    (err) => {
+                        if (err) {
+                            console.error("Error deleting payments:", err);
+                            return res.status(500).send("Database error occurred");
+                        }
+
+                        // Finally delete the rider
+                        db.run(
+                            "DELETE FROM riders WHERE id = ?",
+                            [riderId],
+                            (err) => {
+                                if (err) {
+                                    console.error("Error deleting rider:", err);
+                                    return res.status(500).send("Database error occurred");
+                                }
+                                res.redirect("/dashboard");
+                            }
+                        );
                     }
                 );
             }
@@ -289,11 +331,11 @@ function createRiderRouter(db) {
                 db.all(`
                     SELECT * FROM emergency_contacts 
                     WHERE rider_id = ?
-                    ORDER BY contact_order ASC`, 
-                    [req.params.id], 
+                    ORDER BY contact_order ASC`,
+                    [req.params.id],
                     (err, contacts) => {
                         if (err) throw err;
-                        res.render("emergency-contacts", { 
+                        res.render("emergency-contacts", {
                             rider,
                             riderId: rider.id,
                             contact1: contacts && contacts[0] ? contacts[0] : {},
@@ -309,7 +351,7 @@ function createRiderRouter(db) {
     // Process emergency contact updates
     router.post("/:id/emergency-contacts", isAuthenticated, (req, res) => {
         const riderId = req.params.id;
-        
+
         const {
             contact1_name, contact1_relationship, contact1_phone, contact1_other_phone,
             contact2_name, contact2_relationship, contact2_phone, contact2_other_phone,
