@@ -23,12 +23,14 @@ block content
                 tr.border-t.border-gray-800.group
                   // Mobile: Entire row clickable
                   td(class="py-3 px-4 cursor-pointer md:cursor-default" onclick=`window.location.href='/edit-rider/${rider.id}'`)
-                    .flex.items-center.text-white
+                    .flex.items-center(class=rider.rider_cancelled ? "text-gray-500" : "text-white")
                       span= rider.name
                       if rider.instructions_sent
                         i.fas.fa-check.text-green-500.ml-2
                       if rider.has_emergency_contacts
                         i.fas.fa-ambulance.text-red-500.ml-2
+                      if rider.rider_cancelled
+                        i.fas.fa-times.text-red-700.ml-2
                     if rider.congregation
                       .text-sm.text-gray-400= rider.congregation
                     // Mobile-only summary info
