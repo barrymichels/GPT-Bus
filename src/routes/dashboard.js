@@ -29,7 +29,8 @@ function createDashboardRouter(db) {
                     r.*,
                     tr.seats,
                     tr.instructions_sent,
-                    COALESCE(SUM(p.amount), 0) as total_paid
+                    COALESCE(SUM(p.amount), 0) as total_paid,
+                    (SELECT COUNT(*) FROM emergency_contacts ec WHERE ec.rider_id = r.id) as emergency_contact_count
                 FROM riders r
                 INNER JOIN trip_riders tr ON r.id = tr.rider_id
                 LEFT JOIN payments p ON tr.trip_id = p.trip_id AND r.id = p.rider_id
@@ -48,6 +49,7 @@ function createDashboardRouter(db) {
                             style: 'currency',
                             currency: 'USD'
                         });
+                        rider.has_emergency_contacts = rider.emergency_contact_count > 0;
                     });
 
                     // Calculate financial summaries
