@@ -37,7 +37,7 @@ function createRiderRouter(db) {
             if (!activeTrip) {
                 return res.redirect("/trips");
             }
-            const { name, email, phone, street, city, state, zip, congregation } = req.body;
+            const { name, email, phone, street, city, state, zip, congregation, instructions_sent, rider_cancelled } = req.body;
 
             db.serialize(() => {
                 db.run(
@@ -47,8 +47,8 @@ function createRiderRouter(db) {
                         if (err) throw err;
                         const riderId = this.lastID;
                         db.run(
-                            "INSERT INTO trip_riders (trip_id, rider_id, seats, instructions_sent) VALUES (?, ?, ?, ?)",
-                            [activeTrip.id, riderId, 1, 0],
+                            "INSERT INTO trip_riders (trip_id, rider_id, seats, instructions_sent, rider_cancelled) VALUES (?, ?, ?, ?, ?)",
+                            [activeTrip.id, riderId, 1, instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0],
                             (err) => {
                                 if (err) throw err;
                                 res.redirect("/dashboard");
@@ -129,6 +129,7 @@ function createRiderRouter(db) {
                             r.congregation,
                             r.medical_notes,
                             tr.instructions_sent,
+                            tr.rider_cancelled,
                             tr.balance as old_balance,
                             COALESCE(SUM(p.amount), 0) as total_paid,
                             CASE 
@@ -178,7 +179,8 @@ function createRiderRouter(db) {
                     r.zip,
                     r.congregation,
                     r.medical_notes,
-                    tr.instructions_sent
+                    tr.instructions_sent,
+                    tr.rider_cancelled
              FROM riders r
              LEFT JOIN trip_riders tr ON r.id = tr.rider_id
              LEFT JOIN trips t ON tr.trip_id = t.id AND t.is_active = 1
@@ -199,7 +201,7 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, street, city, state, zip, instructions_sent, congregation, redirect } = req.body;
+        const { name, email, phone, street, city, state, zip, instructions_sent, rider_cancelled, congregation, redirect } = req.body;
 
         db.run(
             "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
@@ -207,8 +209,8 @@ function createRiderRouter(db) {
             (err) => {
                 if (err) throw err;
                 db.run(
-                    "UPDATE trip_riders SET instructions_sent = ? WHERE rider_id = ?",
-                    [instructions_sent ? 1 : 0, req.params.id],
+                    "UPDATE trip_riders SET instructions_sent = ?, rider_cancelled = ? WHERE rider_id = ?",
+                    [instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0, req.params.id],
                     (err) => {
                         if (err) throw err;
                         // If redirect parameter is present, use it, otherwise go to dashboard

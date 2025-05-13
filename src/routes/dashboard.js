@@ -29,6 +29,7 @@ function createDashboardRouter(db) {
                     r.*,
                     tr.seats,
                     tr.instructions_sent,
+                    tr.rider_cancelled,
                     COALESCE(SUM(p.amount), 0) as total_paid,
                     (SELECT COUNT(*) FROM emergency_contacts ec WHERE ec.rider_id = r.id) as emergency_contact_count
                 FROM riders r
@@ -58,8 +59,10 @@ function createDashboardRouter(db) {
                         0
                     );
                     const REMAINING_FUNDS = activeTrip.cost_of_rental - TOTAL_COLLECTED;
+
+                    // Calculate seat counts, excluding cancelled riders
                     const RESERVED_SEATS = riders.reduce(
-                        (total, rider) => total + (rider.seats || 0),
+                        (total, rider) => rider.rider_cancelled ? total : total + (rider.seats || 0),
                         0
                     );
                     const REMAINING_SEATS = activeTrip.total_seats - RESERVED_SEATS;

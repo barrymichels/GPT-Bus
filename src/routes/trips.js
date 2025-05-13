@@ -91,11 +91,11 @@ function createTripRouter(db) {
     router.post("/:id/add-riders", isAuthenticated, (req, res, next) => {
         const tripId = req.params.id;
         const selectedRiders = req.body.selected_riders;
-        
+
         if (!selectedRiders || !tripId) {
             return res.redirect("/trips");
         }
-        
+
         db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
             if (err || !trip) return res.redirect("/trips");
 
@@ -125,12 +125,14 @@ function createTripRouter(db) {
         db.get("SELECT * FROM trips WHERE id = ?", [req.params.id], (err, trip) => {
             if (err) throw err;
             if (!trip) return res.redirect("/trips");
-            
+
             // Get all riders with their emergency contacts
             db.all(`
                 SELECT 
                     r.*,
                     tr.seats,
+                    tr.instructions_sent,
+                    tr.rider_cancelled,
                     ec1.name as contact1_name,
                     ec1.relationship as contact1_relationship,
                     ec1.phone as contact1_phone,
@@ -152,7 +154,7 @@ function createTripRouter(db) {
                 [req.params.id],
                 (err, riders) => {
                     if (err) throw err;
-                    
+
                     // Process riders to format emergency contacts
                     const processedRiders = riders.map(rider => ({
                         ...rider,
@@ -169,10 +171,10 @@ function createTripRouter(db) {
                             other_phone: rider.contact2_other_phone
                         } : null
                     }));
-                    
-                    res.render("trip-roster", { 
+
+                    res.render("trip-roster", {
                         trip,
-                        riders: processedRiders 
+                        riders: processedRiders
                     });
                 }
             );

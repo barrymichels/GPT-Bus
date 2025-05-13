@@ -77,32 +77,33 @@ html(lang="en")
           th(class="col-notes") Medical Notes
       tbody
         each rider in riders
-          tr
-            td
-              strong #{rider.name}
-              br
-              | Phone: #{rider.phone}
-              if rider.congregation
+          if !rider.rider_cancelled
+            tr
+              td
+                strong #{rider.name}
                 br
-                | Congregation: #{rider.congregation}
-            td
-              if rider.contact1
-                strong #{rider.contact1.name}
-                if rider.contact1.relationship
-                  |  (#{rider.contact1.relationship})
-                br
-                | #{rider.contact1.phone}
-                if rider.contact1.other_phone
+                | Phone: #{rider.phone}
+                if rider.congregation
                   br
-                  | Alt: #{rider.contact1.other_phone}
-            td
-              if rider.contact2
-                strong #{rider.contact2.name}
-                if rider.contact2.relationship
-                  |  (#{rider.contact2.relationship})
-                br
-                | #{rider.contact2.phone}
-                if rider.contact2.other_phone
+                  | Congregation: #{rider.congregation}
+              td
+                if rider.contact1
+                  strong #{rider.contact1.name}
+                  if rider.contact1.relationship
+                    |  (#{rider.contact1.relationship})
                   br
-                  | Alt: #{rider.contact2.other_phone}
-            td.emergency-info #{rider.medical_notes || ''}
+                  | #{rider.contact1.phone}
+                  if rider.contact1.other_phone
+                    br
+                    | Alt: #{rider.contact1.other_phone}
+              td
+                if rider.contact2
+                  strong #{rider.contact2.name}
+                  if rider.contact2.relationship
+                    |  (#{rider.contact2.relationship})
+                  br
+                  | #{rider.contact2.phone}
+                  if rider.contact2.other_phone
+                    br
+                    | Alt: #{rider.contact2.other_phone}
+              td.emergency-info #{rider.medical_notes || ''}

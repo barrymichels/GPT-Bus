@@ -40,6 +40,10 @@ block content
             label(class="flex items-center space-x-2 text-white")
               input(type='checkbox', name='instructions_sent', checked=rider.instructions_sent === 1, class="form-checkbox h-5 w-5 text-blue-500")
               span.text-sm.font-bold Instructions Sent
+          .mb-4
+            label(class="flex items-center space-x-2 text-white")
+              input(type='checkbox', name='rider_cancelled', checked=rider.rider_cancelled === 1, class="form-checkbox h-5 w-5 text-red-500")
+              span.text-sm.font-bold Rider Cancelled
         
         .flex.flex-wrap.gap-3.justify-end
           button(type='submit', class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Update Rider

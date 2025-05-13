@@ -27,7 +27,7 @@ function createServer(db) {
 
     // Routes that don't require authentication
     app.get("/", (req, res) => res.redirect("/dashboard"));
-    
+
     // Mount routers
     const authRouter = createAuthRouter();
     const dashboardRouter = createDashboardRouter(db);
@@ -104,6 +104,43 @@ function createServer(db) {
 async function initDbAndStartServer() {
     try {
         const db = await initializeDatabase();
+
+        // Database Initialization and Server Startup
+        // Creates necessary tables if they don't exist
+        // Handles database schema migrations for new columns
+        // Creates default admin user if none exists
+        db.serialize(() => {
+            // Check existing table schema and add new columns if needed
+            db.all("PRAGMA table_info(riders)", [], (err, rows) => {
+                if (err) {
+                    console.error('Error checking table schema:', err);
+                    return;
+                }
+
+                // Helper function to check if column exists
+                const columnExists = (columnName) => {
+                    return rows.some(row => row.name === columnName);
+                };
+
+                // Add new columns if they don't exist
+                const migrations = [
+                    !columnExists('street') ? "ALTER TABLE riders ADD COLUMN street TEXT DEFAULT '';" : null,
+                    !columnExists('city') ? "ALTER TABLE riders ADD COLUMN city TEXT DEFAULT '';" : null,
+                    !columnExists('state') ? "ALTER TABLE riders ADD COLUMN state TEXT DEFAULT '';" : null,
+                    !columnExists('zip') ? "ALTER TABLE riders ADD COLUMN zip TEXT DEFAULT '';" : null,
+                    !columnExists('instructions_sent') ? "ALTER TABLE riders ADD COLUMN instructions_sent BOOLEAN DEFAULT 0;" : null,
+                    !columnExists('rider_cancelled') ? "ALTER TABLE riders ADD COLUMN rider_cancelled BOOLEAN DEFAULT 0;" : null
+                ].filter(Boolean);
+
+                // Execute migrations sequentially
+                migrations.forEach(migration => {
+                    db.run(migration, (err) => {
+                        if (err) console.error('Migration error:', err);
+                    });
+                });
+            });
+        });
+
         const app = createServer(db);
         app.listen(3000, () => {
             console.log("Server running on http://localhost:3000");
@@ -115,9 +152,9 @@ async function initDbAndStartServer() {
 }
 
 // Export createServer and initDbAndStartServer for testing/dependency injection
-module.exports = { 
+module.exports = {
     createServer,
-    initDbAndStartServer 
+    initDbAndStartServer
 };
 
 // Only start server if this file is run directly
