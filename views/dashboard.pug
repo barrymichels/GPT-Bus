@@ -16,7 +16,7 @@ block content
               tr.bg-gray-800.text-gray-300.text-left
                 th.py-3.px-4 Name
                 th(class="py-3 px-4 hidden md:table-cell") Collected
-                th(class="py-3 px-4 hidden md:table-cell") Remaining
+                th(class="py-3 px-4 hidden md:table-cell") Balance Due
                 th(class="py-3 px-4 text-right hidden md:table-cell") Actions
             tbody
               each rider in riders
@@ -27,14 +27,16 @@ block content
                       span= rider.name
                       if rider.instructions_sent
                         i.fas.fa-check.text-green-500.ml-2
+                      if rider.has_emergency_contacts
+                        i.fas.fa-ambulance.text-red-500.ml-2
                     if rider.congregation
                       .text-sm.text-gray-400= rider.congregation
                     // Mobile-only summary info
                     div(class="md:hidden text-sm text-gray-400 mt-1")
                       .flex.justify-between
-                        span Remaining: $#{rider.balance}
+                        span Balance Due: $#{rider.balance}
                       .flex.justify-between.mt-1
-                        span= rider.collected
+                        span Collected: #{rider.collected}
                       // Mobile-only actions
                       .flex.justify-end.mt-2.space-x-2
                         a(href=`/rider/${rider.id}/payments` class="bg-blue-600 text-white text-sm px-3 py-1 rounded-lg hover:bg-blue-700") View Payments
