@@ -100,7 +100,7 @@ describe("Server Tests", () => {
                 .send({ username: "admin", password: "password123" });
 
             const response = await agent.get("/add-payment");
-            expect(response.status).toBe(500); // Should fail with 500 since there's no active trip
+            expect(response.status).toBe(404); // Should return 404 since route requires riderId parameter
         });
 
         it("should rewrite /edit-payment URL correctly", async () => {
@@ -116,7 +116,7 @@ describe("Server Tests", () => {
                 .send({ username: "admin", password: "password123" });
 
             const response = await agent.get("/delete-payment/123");
-            expect(response.status).toBe(500); // Should fail with 500 since payment doesn't exist
+            expect(response.status).toBe(404); // Should return 404 since delete route expects POST method
         });
     });
 
