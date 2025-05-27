@@ -284,16 +284,28 @@ function createRiderRouter(db) {
                             return res.status(500).send("Database error occurred");
                         }
 
-                        // Finally delete the rider
+                        // Delete from trip_riders
                         db.run(
-                            "DELETE FROM riders WHERE id = ?",
+                            "DELETE FROM trip_riders WHERE rider_id = ?",
                             [riderId],
                             (err) => {
                                 if (err) {
-                                    console.error("Error deleting rider:", err);
+                                    console.error("Error deleting trip_riders:", err);
                                     return res.status(500).send("Database error occurred");
                                 }
-                                res.redirect("/dashboard");
+
+                                // Finally delete the rider
+                                db.run(
+                                    "DELETE FROM riders WHERE id = ?",
+                                    [riderId],
+                                    (err) => {
+                                        if (err) {
+                                            console.error("Error deleting rider:", err);
+                                            return res.status(500).send("Database error occurred");
+                                        }
+                                        res.redirect("/dashboard");
+                                    }
+                                );
                             }
                         );
                     }
