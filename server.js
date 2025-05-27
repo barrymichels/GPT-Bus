@@ -90,6 +90,8 @@ function createServer(db) {
     app.use('/delete-rider', (req, res, next) => {
         if (req.url.includes('/from-trip')) {
             req.url = req.url.replace('/delete-rider', '/riders').replace('/from-trip', '/from-trip');
+        } else if (req.url.includes('/complete')) {
+            req.url = req.url.replace('/delete-rider', '/riders').replace('/complete', '/complete');
         } else {
             req.url = req.url.replace('/delete-rider', '/riders') + '/delete';
         }
