@@ -42,27 +42,27 @@ function createServer(db) {
 
     // Mount user routes
     app.use('/change-password', userRouter);
-    app.use('/add-user', (req, res) => {
+    app.use('/add-user', (req, res, next) => {
         req.url = '/add' + req.url.replace('/add-user', '');
-        userRouter.handle(req, res);
+        userRouter.handle(req, res, next);
     });
 
     // Mount payment routes
-    app.use('/rider/:id/payments', (req, res) => {
+    app.use('/rider/:id/payments', (req, res, next) => {
         req.url = '/history/' + req.params.id;
-        paymentRouter.handle(req, res);
+        paymentRouter.handle(req, res, next);
     });
-    app.use('/add-payment', (req, res) => {
+    app.use('/add-payment', (req, res, next) => {
         req.url = '/add' + req.url.replace('/add-payment', '');
-        paymentRouter.handle(req, res);
+        paymentRouter.handle(req, res, next);
     });
-    app.use('/edit-payment', (req, res) => {
+    app.use('/edit-payment', (req, res, next) => {
         req.url = '/edit' + req.url.replace('/edit-payment', '');
-        paymentRouter.handle(req, res);
+        paymentRouter.handle(req, res, next);
     });
-    app.use('/delete-payment', (req, res) => {
+    app.use('/delete-payment', (req, res, next) => {
         req.url = '/delete' + req.url.replace('/delete-payment', '');
-        paymentRouter.handle(req, res);
+        paymentRouter.handle(req, res, next);
     });
     app.use('/payments', paymentRouter);
 
@@ -71,29 +71,29 @@ function createServer(db) {
     app.get('/add-trip', isAuthenticated, (req, res) => {
         res.render('add-trip');
     });
-    app.post('/add-trip', (req, res) => {
+    app.post('/add-trip', (req, res, next) => {
         req.url = '/';
-        tripRouter.handle(req, res);
+        tripRouter.handle(req, res, next);
     });
     app.use('/trip', tripRouter);
 
     // Mount rider routes
     app.use('/riders', riderRouter);
-    app.use('/add-rider', (req, res) => {
+    app.use('/add-rider', (req, res, next) => {
         req.url = '/add';
-        riderRouter.handle(req, res);
+        riderRouter.handle(req, res, next);
     });
-    app.use('/edit-rider', (req, res) => {
+    app.use('/edit-rider', (req, res, next) => {
         req.url = req.url.replace('/edit-rider', '/riders') + '/edit';
-        riderRouter.handle(req, res);
+        riderRouter.handle(req, res, next);
     });
-    app.use('/delete-rider', (req, res) => {
+    app.use('/delete-rider', (req, res, next) => {
         if (req.url.includes('/from-trip')) {
             req.url = req.url.replace('/delete-rider', '/riders').replace('/from-trip', '/from-trip');
         } else {
             req.url = req.url.replace('/delete-rider', '/riders') + '/delete';
         }
-        riderRouter.handle(req, res);
+        riderRouter.handle(req, res, next);
     });
     app.use('/rider', riderRouter);
 
