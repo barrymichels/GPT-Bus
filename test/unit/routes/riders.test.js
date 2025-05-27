@@ -169,22 +169,34 @@ describe('Riders Routes', () => {
             mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
             // Mock to clear payments next
             mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
+            // Mock to clear trip_riders
+            mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
+            // Mock to clear rider
+            mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
 
             const response = await request(app).get('/riders/1/complete');
             expect(response.status).toBe(302);
-            expect(mockDb.run).toHaveBeenCalledWith(
+            expect(response.header.location).toBe('/dashboard');
+            
+            // Verify all deletions happened in correct order
+            expect(mockDb.run).toHaveBeenNthCalledWith(1,
                 expect.stringContaining("DELETE FROM emergency_contacts"),
-                ["1"],  // String param as that's what the actual implementation uses
+                ["1"],
                 expect.any(Function)
             );
-            expect(mockDb.run).toHaveBeenCalledWith(
+            expect(mockDb.run).toHaveBeenNthCalledWith(2,
                 expect.stringContaining("DELETE FROM payments"),
-                ["1"],  // String param as that's what the actual implementation uses
+                ["1"],
                 expect.any(Function)
             );
-            expect(mockDb.run).toHaveBeenCalledWith(
+            expect(mockDb.run).toHaveBeenNthCalledWith(3,
+                expect.stringContaining("DELETE FROM trip_riders"),
+                ["1"],
+                expect.any(Function)
+            );
+            expect(mockDb.run).toHaveBeenNthCalledWith(4,
                 expect.stringContaining("DELETE FROM riders"),
-                ["1"],  // String param as that's what the actual implementation uses
+                ["1"],
                 expect.any(Function)
             );
         });
