@@ -77,7 +77,7 @@ function createTripRouter(db) {
         db.get("SELECT * FROM trips WHERE id = ?", [tripId], (err, trip) => {
             if (err || !trip) return res.redirect("/trips");
             db.all(
-                "SELECT * FROM riders WHERE id NOT IN (SELECT rider_id FROM trip_riders WHERE trip_id = ?)",
+                "SELECT * FROM riders WHERE id NOT IN (SELECT rider_id FROM trip_riders WHERE trip_id = ?) ORDER BY name",
                 [tripId],
                 (err, availableRiders) => {
                     if (err) return res.redirect("/trips");
