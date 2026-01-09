@@ -12,7 +12,12 @@ describe('Riders Routes', () => {
 
         mockDb = {
             get: jest.fn((q, p, cb) => cb(null, { id: 1, name: 'Test Trip', cost_per_seat: 50 })),
-            run: jest.fn((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined),
+            run: jest.fn((q, p, cb) => {
+                if (typeof cb === 'function') {
+                    // Bind this.lastID for INSERT callbacks that rely on it
+                    cb.call({ lastID: 1, changes: 1 }, null);
+                }
+            }),
             all: jest.fn((q, p, cb) => cb(null, [])),
             serialize: jest.fn((cb) => cb())
         };
