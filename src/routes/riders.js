@@ -37,12 +37,12 @@ function createRiderRouter(db) {
             if (!activeTrip) {
                 return res.redirect("/trips");
             }
-            const { name, email, phone, street, city, state, zip, congregation, instructions_sent, rider_cancelled } = req.body;
+            const { name, email, phone, street, city, state, zip, congregation, instructions_sent, rider_cancelled, notes } = req.body;
 
             db.serialize(() => {
                 db.run(
-                    "INSERT INTO riders (name, email, phone, street, city, state, zip, congregation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    [name, email, phone, street || "", city || "", state || "", zip || "", congregation || ""],
+                    "INSERT INTO riders (name, email, phone, street, city, state, zip, congregation, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [name, email, phone, street || "", city || "", state || "", zip || "", congregation || "", notes || ""],
                     function (err) {
                         if (err) throw err;
                         const riderId = this.lastID;
