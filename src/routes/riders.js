@@ -179,6 +179,7 @@ function createRiderRouter(db) {
                     r.zip,
                     r.congregation,
                     r.medical_notes,
+                    r.notes,
                     tr.instructions_sent,
                     tr.rider_cancelled
              FROM riders r
@@ -201,11 +202,11 @@ function createRiderRouter(db) {
 
     // Update rider
     router.post("/:id/edit", isAuthenticated, (req, res) => {
-        const { name, email, phone, street, city, state, zip, instructions_sent, rider_cancelled, congregation, redirect } = req.body;
+        const { name, email, phone, street, city, state, zip, instructions_sent, rider_cancelled, congregation, notes, redirect } = req.body;
 
         db.run(
-            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
-            [name, email, phone, street, city, state, zip, congregation || "", req.params.id],
+            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ?, notes = ? WHERE id = ?",
+            [name, email, phone, street, city, state, zip, congregation || "", notes || "", req.params.id],
             (err) => {
                 if (err) throw err;
                 db.run(

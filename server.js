@@ -131,7 +131,8 @@ async function initDbAndStartServer() {
                     !columnExists('state') ? "ALTER TABLE riders ADD COLUMN state TEXT DEFAULT '';" : null,
                     !columnExists('zip') ? "ALTER TABLE riders ADD COLUMN zip TEXT DEFAULT '';" : null,
                     !columnExists('instructions_sent') ? "ALTER TABLE riders ADD COLUMN instructions_sent BOOLEAN DEFAULT 0;" : null,
-                    !columnExists('rider_cancelled') ? "ALTER TABLE riders ADD COLUMN rider_cancelled BOOLEAN DEFAULT 0;" : null
+                    !columnExists('rider_cancelled') ? "ALTER TABLE riders ADD COLUMN rider_cancelled BOOLEAN DEFAULT 0;" : null,
+                    !columnExists('notes') ? "ALTER TABLE riders ADD COLUMN notes TEXT DEFAULT '';" : null
                 ].filter(Boolean);
 
                 // Execute migrations sequentially

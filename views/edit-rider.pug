@@ -44,7 +44,12 @@ block content
             label(class="flex items-center space-x-2 text-white")
               input(type='checkbox', name='rider_cancelled', checked=rider.rider_cancelled === 1, class="form-checkbox h-5 w-5 text-red-500")
               span.text-sm.font-bold Rider Cancelled
-        
+
+        // Notes
+        .mb-4
+          label(for='notes').block.text-sm.font-bold.mb-2.text-white Notes
+          textarea#notes(name='notes', rows='3', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")= rider.notes
+
         .flex.flex-wrap.gap-3.justify-end
           button(type='submit', class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Update Rider
           a#emergencyContactsLink(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Emergency Contacts
