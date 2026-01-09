@@ -1,0 +1,450 @@
+const express = require('express');
+const { isAuthenticated } = require('../middleware/auth');
+
+/**
+ * Create router for rider-related routes
+ * @param {Object} db - Database connection
+ */
+function createRiderRouter(db) {
+    const router = express.Router();
+
+    // Add new rider form
+    router.get("/add", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.render("add-rider", { error: "Database error occurred" });
+            }
+
+            if (!activeTrip) {
+                return res.render("add-rider", {
+                    error: "No active trip selected. Please select a trip first.",
+                    showTripLink: true
+                });
+            }
+
+            res.render("add-rider", {
+                activeTrip,
+                formTitle: `Add New Rider to ${activeTrip.name}`
+            });
+        });
+    });
+
+    // Create new rider
+    router.post("/add", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) throw err;
+            if (!activeTrip) {
+                return res.redirect("/trips");
+            }
+            const { name, email, phone, street, city, state, zip, congregation, instructions_sent, rider_cancelled } = req.body;
+
+            db.serialize(() => {
+                db.run(
+                    "INSERT INTO riders (name, email, phone, street, city, state, zip, congregation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [name, email, phone, street || "", city || "", state || "", zip || "", congregation || ""],
+                    function (err) {
+                        if (err) throw err;
+                        const riderId = this.lastID;
+                        db.run(
+                            "INSERT INTO trip_riders (trip_id, rider_id, seats, instructions_sent, rider_cancelled) VALUES (?, ?, ?, ?, ?)",
+                            [activeTrip.id, riderId, 1, instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0],
+                            (err) => {
+                                if (err) throw err;
+                                res.redirect("/dashboard");
+                            }
+                        );
+                    }
+                );
+            });
+        });
+    });
+
+    // Dashboard data
+    router.get("/dashboard", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) throw err;
+            if (!activeTrip) {
+                return res.render("dashboard", { activeTrip: null });
+            }
+
+            console.error('DEBUG - Active Trip:', activeTrip);
+
+            // First, let's check the payments directly
+            db.all("SELECT * FROM payments WHERE trip_id = ?", [activeTrip.id], (err, allPayments) => {
+                if (err) throw err;
+                console.error('DEBUG - All Payments for Trip:', allPayments);
+
+                const query = `
+                    SELECT 
+                        r.id,
+                        r.name,
+                        tr.balance as old_balance,
+                        COALESCE(SUM(p.amount), 0) as total_paid
+                    FROM riders r
+                    LEFT JOIN trip_riders tr ON r.id = tr.rider_id AND tr.trip_id = ?
+                    LEFT JOIN payments p ON r.id = p.rider_id AND p.trip_id = ?
+                    WHERE tr.trip_id = ?
+                    GROUP BY r.id`;
+
+                console.error('DEBUG - About to execute query with params:', [activeTrip.id, activeTrip.id, activeTrip.id]);
+
+                db.all(query, [activeTrip.id, activeTrip.id, activeTrip.id], (err, riders) => {
+                    if (err) {
+                        console.error('DEBUG - Query Error:', err);
+                        throw err;
+                    }
+
+                    console.error('DEBUG - Raw Riders Data:', riders);
+
+                    // Process riders
+                    riders.forEach(rider => {
+                        const totalPaid = parseFloat(rider.total_paid) || 0;
+                        const costPerSeat = parseFloat(activeTrip.cost_per_seat) || 0;
+                        const balance = costPerSeat - totalPaid;
+
+                        console.error('DEBUG - Processing rider:', {
+                            name: rider.name,
+                            totalPaid,
+                            costPerSeat,
+                            balance,
+                            old_balance: rider.old_balance
+                        });
+
+                        rider.total_paid = totalPaid;
+                        rider.balance = balance;
+                    });
+
+                    // Continue with the full query for rendering
+                    db.all(`
+                        SELECT 
+                            r.id,
+                            r.name,
+                            r.email,
+                            r.phone,
+                            r.street,
+                            r.city,
+                            r.state,
+                            r.zip,
+                            r.congregation,
+                            r.medical_notes,
+                            tr.instructions_sent,
+                            tr.rider_cancelled,
+                            tr.balance as old_balance,
+                            COALESCE(SUM(p.amount), 0) as total_paid,
+                            CASE 
+                                WHEN COALESCE(SUM(p.amount), 0) >= ? THEN 'Paid in Full'
+                                WHEN COALESCE(SUM(p.amount), 0) > 0 THEN 'Partial Payment'
+                                ELSE 'No Payment'
+                            END as collected
+                        FROM riders r
+                        LEFT JOIN trip_riders tr ON r.id = tr.rider_id AND tr.trip_id = ?
+                        LEFT JOIN payments p ON r.id = p.rider_id AND p.trip_id = ?
+                        WHERE tr.trip_id = ?
+                        GROUP BY r.id
+                        ORDER BY r.name`,
+                        [activeTrip.cost_per_seat, activeTrip.id, activeTrip.id, activeTrip.id],
+                        (err, fullRiders) => {
+                            if (err) throw err;
+
+                            fullRiders.forEach(rider => {
+                                rider.total_paid = parseFloat(rider.total_paid) || 0;
+                                rider.balance = parseFloat(activeTrip.cost_per_seat) - rider.total_paid;
+                            });
+
+                            res.render("dashboard", {
+                                activeTrip: {
+                                    ...activeTrip,
+                                    cost_per_seat: parseFloat(activeTrip.cost_per_seat) || 0
+                                },
+                                riders: fullRiders
+                            });
+                        }
+                    );
+                });
+            });
+        });
+    });
+
+    // Edit rider form
+    router.get("/:id/edit", isAuthenticated, (req, res) => {
+        db.get(
+            `SELECT r.id,
+                    r.name,
+                    r.email,
+                    r.phone,
+                    r.street,
+                    r.city,
+                    r.state,
+                    r.zip,
+                    r.congregation,
+                    r.medical_notes,
+                    tr.instructions_sent,
+                    tr.rider_cancelled
+             FROM riders r
+             LEFT JOIN trip_riders tr ON r.id = tr.rider_id
+             LEFT JOIN trips t ON tr.trip_id = t.id AND t.is_active = 1
+             WHERE r.id = ?
+             GROUP BY r.id`,
+            [req.params.id],
+            (err, rider) => {
+                if (err) throw err;
+                if (!rider) return res.redirect("/dashboard");
+
+                db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+                    if (err) throw err;
+                    res.render("edit-rider", { rider, activeTrip });
+                });
+            }
+        );
+    });
+
+    // Update rider
+    router.post("/:id/edit", isAuthenticated, (req, res) => {
+        const { name, email, phone, street, city, state, zip, instructions_sent, rider_cancelled, congregation, redirect } = req.body;
+
+        db.run(
+            "UPDATE riders SET name = ?, email = ?, phone = ?, street = ?, city = ?, state = ?, zip = ?, congregation = ? WHERE id = ?",
+            [name, email, phone, street, city, state, zip, congregation || "", req.params.id],
+            (err) => {
+                if (err) throw err;
+                db.run(
+                    "UPDATE trip_riders SET instructions_sent = ?, rider_cancelled = ? WHERE rider_id = ?",
+                    [instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0, req.params.id],
+                    (err) => {
+                        if (err) throw err;
+                        // If redirect parameter is present, use it, otherwise go to dashboard
+                        res.redirect(redirect || "/dashboard");
+                    }
+                );
+            }
+        );
+    });
+
+    // Remove rider from current trip only
+    router.get("/:id/from-trip", isAuthenticated, (req, res) => {
+        db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
+            if (err) throw err;
+            if (!activeTrip) return res.redirect("/dashboard");
+
+            db.run(
+                "DELETE FROM trip_riders WHERE rider_id = ? AND trip_id = ?",
+                [req.params.id, activeTrip.id],
+                (err) => {
+                    if (err) throw err;
+                    res.redirect("/dashboard");
+                }
+            );
+        });
+    });
+
+    // Delete rider completely
+    router.get("/:id/delete", isAuthenticated, (req, res) => {
+        db.get(
+            "SELECT COUNT(*) AS paymentCount FROM payments WHERE rider_id = ?",
+            [req.params.id],
+            (err, result) => {
+                if (err) throw err;
+                if (result.paymentCount > 0) {
+                    return res.redirect("/dashboard");
+                }
+                db.run(
+                    "DELETE FROM riders WHERE id = ?",
+                    [req.params.id],
+                    (err) => {
+                        if (err) throw err;
+                        res.redirect("/dashboard");
+                    }
+                );
+            }
+        );
+    });
+
+    // Complete deletion of rider (including emergency contacts)
+    router.get("/:id/complete", isAuthenticated, (req, res) => {
+        const riderId = req.params.id;
+
+        // First delete emergency contacts
+        db.run(
+            "DELETE FROM emergency_contacts WHERE rider_id = ?",
+            [riderId],
+            (err) => {
+                if (err) {
+                    console.error("Error deleting emergency contacts:", err);
+                    return res.status(500).send("Database error occurred");
+                }
+
+                // Then delete payments
+                db.run(
+                    "DELETE FROM payments WHERE rider_id = ?",
+                    [riderId],
+                    (err) => {
+                        if (err) {
+                            console.error("Error deleting payments:", err);
+                            return res.status(500).send("Database error occurred");
+                        }
+
+                        // Delete from trip_riders
+                        db.run(
+                            "DELETE FROM trip_riders WHERE rider_id = ?",
+                            [riderId],
+                            (err) => {
+                                if (err) {
+                                    console.error("Error deleting trip_riders:", err);
+                                    return res.status(500).send("Database error occurred");
+                                }
+
+                                // Finally delete the rider
+                                db.run(
+                                    "DELETE FROM riders WHERE id = ?",
+                                    [riderId],
+                                    (err) => {
+                                        if (err) {
+                                            console.error("Error deleting rider:", err);
+                                            return res.status(500).send("Database error occurred");
+                                        }
+                                        res.redirect("/dashboard");
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
+
+    // View rider payments
+    router.get("/:id/payments", isAuthenticated, (req, res) => {
+        db.get(
+            "SELECT * FROM riders WHERE id = ?",
+            [req.params.id],
+            (err, rider) => {
+                if (err) throw err;
+                db.all(
+                    "SELECT * FROM payments WHERE rider_id = ?",
+                    [req.params.id],
+                    (err, payments) => {
+                        if (err) throw err;
+                        res.render("rider-payments", { rider, payments });
+                    }
+                );
+            }
+        );
+    });
+
+    // Emergency contacts form
+    router.get("/:id/emergency-contacts", isAuthenticated, (req, res) => {
+        db.get(
+            "SELECT * FROM riders WHERE id = ?",
+            [req.params.id],
+            (err, rider) => {
+                if (err) throw err;
+                if (!rider) return res.redirect("/dashboard");
+
+                db.all(`
+                    SELECT * FROM emergency_contacts 
+                    WHERE rider_id = ?
+                    ORDER BY contact_order ASC`,
+                    [req.params.id],
+                    (err, contacts) => {
+                        if (err) throw err;
+                        res.render("emergency-contacts", {
+                            rider,
+                            riderId: rider.id,
+                            contact1: contacts && contacts[0] ? contacts[0] : {},
+                            contact2: contacts && contacts[1] ? contacts[1] : {},
+                            medical_notes: rider.medical_notes
+                        });
+                    }
+                );
+            }
+        );
+    });
+
+    // Process emergency contact updates
+    router.post("/:id/emergency-contacts", isAuthenticated, (req, res) => {
+        const riderId = req.params.id;
+
+        const {
+            contact1_name, contact1_relationship, contact1_phone, contact1_other_phone,
+            contact2_name, contact2_relationship, contact2_phone, contact2_other_phone,
+            medical_notes
+        } = req.body;
+
+        // Validate secondary contact if name is provided
+        if (contact2_name && (!contact2_relationship || !contact2_phone)) {
+            return db.get(
+                "SELECT * FROM riders WHERE id = ?",
+                [riderId],
+                (err, rider) => {
+                    if (err) throw err;
+                    if (!rider) return res.redirect("/dashboard");
+
+                    db.all(
+                        "SELECT * FROM emergency_contacts WHERE rider_id = ? ORDER BY contact_order ASC",
+                        [riderId],
+                        (err, contacts) => {
+                            if (err) throw err;
+                            res.render("emergency-contacts", {
+                                error: "If providing a secondary contact, both relationship and phone number are required",
+                                rider,
+                                riderId: rider.id,
+                                contact1: {
+                                    name: contact1_name,
+                                    relationship: contact1_relationship,
+                                    phone: contact1_phone,
+                                    other_phone: contact1_other_phone
+                                },
+                                contact2: {
+                                    name: contact2_name,
+                                    relationship: contact2_relationship,
+                                    phone: contact2_phone,
+                                    other_phone: contact2_other_phone
+                                },
+                                medical_notes
+                            });
+                        }
+                    );
+                }
+            );
+        }
+
+        db.serialize(() => {
+            // Update medical notes
+            db.run(
+                "UPDATE riders SET medical_notes = ? WHERE id = ?",
+                [medical_notes || null, riderId]
+            );
+
+            // Clear existing contacts
+            db.run("DELETE FROM emergency_contacts WHERE rider_id = ?", [riderId]);
+
+            // Insert primary contact if provided
+            if (contact1_name && contact1_phone) {
+                db.run(`
+                    INSERT INTO emergency_contacts (
+                        rider_id, name, relationship, phone, other_phone, contact_order
+                    ) VALUES (?, ?, ?, ?, ?, 1)`,
+                    [riderId, contact1_name, contact1_relationship, contact1_phone, contact1_other_phone]
+                );
+            }
+
+            // Insert secondary contact if provided
+            if (contact2_name && contact2_phone) {
+                db.run(`
+                    INSERT INTO emergency_contacts (
+                        rider_id, name, relationship, phone, other_phone, contact_order
+                    ) VALUES (?, ?, ?, ?, ?, 2)`,
+                    [riderId, contact2_name, contact2_relationship, contact2_phone, contact2_other_phone]
+                );
+            }
+        });
+
+        res.redirect(`/edit-rider/${riderId}`);
+    });
+
+    return router;
+}
+
+module.exports = createRiderRouter;

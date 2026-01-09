@@ -4,6 +4,7 @@ html(lang="en")
         title Bus Rental App
         meta(name="viewport", content="width=device-width, initial-scale=1.0, user-scalable=no")
         link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css")
+        link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css")
         script(src="https://cdn.tailwindcss.com")
     body.bg-gray-800.text-white
         header.flex.justify-between.items-center.p-4.bg-gray-900
@@ -14,6 +15,8 @@ html(lang="en")
                     button(class="dropdown-btn bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline")
                         | Menu
                     ul.dropdown-menu.absolute.hidden.text-gray-700.pt-1
+                        li.item
+                            a.text-sm.py-2.px-4.block.whitespace-no-wrap(href='/trips') Trips
                         li.item
                             a.text-sm.py-2.px-4.block.whitespace-no-wrap(href='/add-user') Add User
                         li.item
@@ -29,5 +32,47 @@ html(lang="en")
                 dropdownMenu.classList.toggle('hidden');
                 dropdownMenu.style.zIndex = "9999";
                 dropdownMenu.style.backgroundColor = "white";
+            });
+        });
+
+        // Phone number formatting
+        function formatPhoneNumber(input) {
+            // Remove all non-digit characters
+            let value = input.value.replace(/\D/g, '');
+            
+            // Trim to 10 digits if longer
+            value = value.substring(0, 10);
+            
+            // Format with dashes
+            if (value.length >= 6) {
+                value = value.replace(/(\d{3})(\d{3})(\d{0,4})/, '$1-$2-$3');
+            } else if (value.length >= 3) {
+                value = value.replace(/(\d{3})(\d{0,3})/, '$1-$2');
+            }
+            
+            input.value = value;
+        }
+
+        // Apply formatting to all phone inputs
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('input[type="tel"]').forEach(input => {
+                input.addEventListener('input', (e) => formatPhoneNumber(e.target));
+                input.addEventListener('keydown', (e) => {
+                    // Allow: backspace, delete, tab, escape, enter
+                    if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
+                        // Allow: Ctrl+A, Ctrl+C, Ctrl+V
+                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                        (e.keyCode === 67 && e.ctrlKey === true) ||
+                        (e.keyCode === 86 && e.ctrlKey === true) ||
+                        // Allow: home, end, left, right
+                        (e.keyCode >= 35 && e.keyCode <= 39)) {
+                        return;
+                    }
+                    // Block non-numeric keys
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) &&
+                        (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                    }
+                });
             });
         });
