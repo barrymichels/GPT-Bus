@@ -3,6 +3,13 @@ html(lang="en")
     head
         title Bus Rental App
         meta(name="viewport", content="width=device-width, initial-scale=1.0, user-scalable=no")
+        meta(name="theme-color", content="#111827")
+        meta(name="description", content="Bus rental management dashboard")
+        link(rel="manifest", href="/manifest.json")
+        meta(name="apple-mobile-web-app-capable", content="yes")
+        meta(name="apple-mobile-web-app-status-bar-style", content="black-translucent")
+        meta(name="apple-mobile-web-app-title", content="Bus Rental")
+        link(rel="apple-touch-icon", href="/icons/apple-touch-icon.png")
         link(rel="stylesheet", href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css")
         link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css")
         script(src="https://cdn.tailwindcss.com")
@@ -76,3 +83,5 @@ html(lang="en")
                 });
             });
         });
+
+    script(src="/js/pwa-register.js")
