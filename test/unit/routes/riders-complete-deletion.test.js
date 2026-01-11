@@ -8,7 +8,11 @@ describe('Rider Complete Deletion Integration Test', () => {
     beforeEach(() => {
         app = express();
         app.use(express.urlencoded({ extended: true }));
-        app.use((req, res, next) => { req.isAuthenticated = () => true; next(); });
+        app.use((req, res, next) => { 
+            req.isAuthenticated = () => true; 
+            req.flash = () => {}; // Mock flash
+            next(); 
+        });
 
         mockDb = {
             get: jest.fn(),
@@ -37,7 +41,7 @@ describe('Rider Complete Deletion Integration Test', () => {
         });
 
         const response = await request(app)
-            .get(`/riders/${riderId}/complete`);
+            .post(`/riders/${riderId}/complete`);
 
         expect(response.status).toBe(302);
         expect(response.header.location).toBe('/dashboard');
@@ -81,7 +85,7 @@ describe('Rider Complete Deletion Integration Test', () => {
         });
 
         const response = await request(app)
-            .get(`/riders/${riderId}/complete`);
+            .post(`/riders/${riderId}/complete`);
 
         expect(response.status).toBe(500);
         expect(response.text).toBe('Database error occurred');
@@ -114,7 +118,7 @@ describe('Rider Complete Deletion Integration Test', () => {
         });
 
         const response = await request(app)
-            .get(`/riders/${riderId}/complete`);
+            .post(`/riders/${riderId}/complete`);
 
         expect(response.status).toBe(302);
         

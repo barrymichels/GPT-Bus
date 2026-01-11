@@ -76,7 +76,7 @@ describe("Server Tests", () => {
                 .post("/login")
                 .send({ username: "admin", password: "wrongpassword" });
             expect(response.status).toBe(302);
-            expect(response.headers.location).toBe("/login");
+            expect(response.headers.location).toBe("/login?error=1");
         });
     });
 

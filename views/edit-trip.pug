@@ -3,7 +3,7 @@ extends layout
 block content
   .container.mx-auto.px-4.py-8
     .max-w-2xl.mx-auto
-      h1.text-3xl.font-bold.text-white.mb-8 Edit Trip
+      h1.text-2xl.font-bold.text-white.mb-8 Edit Trip: #{trip.name}
 
       form(action=`/trip/${trip.id}/edit` method="POST" class="space-y-6")
         .form-group

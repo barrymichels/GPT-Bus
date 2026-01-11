@@ -3,7 +3,7 @@ extends layout
 block content
   .container.mx-auto.px-4.py-8
     .flex.justify-between.items-center.mb-8
-      h1.text-3xl.font-bold.text-white Bus Trips
+      h1.text-2xl.font-bold.text-white Bus Trips
       a(href="/add-trip" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-colors")
         i.fas.fa-plus.mr-2
         | Add New Trip
@@ -11,37 +11,37 @@ block content
     if trips && trips.length > 0
       div(class="grid gap-6 md:grid-cols-2 lg:grid-cols-3")
         each trip in trips
-          .bg-white.rounded-lg.shadow-lg.p-6
+          .bg-gray-900.rounded-lg.shadow-lg.p-6.border.border-gray-700
             .flex.justify-between.items-start.mb-4
-              h2.text-xl.font-bold= trip.name
+              h2.text-xl.font-bold.text-white= trip.name
               .flex.items-center.space-x-2
                 if trip.is_active
                   span.bg-green-500.text-white.text-sm.px-2.py-1.rounded Active
-                a(href=`/trip/${trip.id}/edit` class="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-full" title="Edit Trip")
+                a(href=`/trip/${trip.id}/edit` class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-full transition-colors" title="Edit Trip" aria-label="Edit trip")
                   i.fas.fa-pencil-alt
-            .space-y-2.text-gray-600
+            .space-y-2.text-gray-300
               p
-                strong Start Date: 
+                strong.text-gray-400 Start Date: 
                 | #{trip.start_date}
               p
-                strong End Date: 
+                strong.text-gray-400 End Date: 
                 | #{trip.end_date}
               p
-                strong Cost per Seat: 
+                strong.text-gray-400 Cost per Seat: 
                 | $#{trip.cost_per_seat}
               p
-                strong Total Seats: 
+                strong.text-gray-400 Total Seats: 
                 | #{trip.total_seats}
               p
-                strong Total Cost: 
+                strong.text-gray-400 Total Cost: 
                 | $#{trip.cost_of_rental}
             
-            .flex.justify-between.items-center.mt-4
+            .flex.flex-wrap.gap-2.mt-4
               if !trip.is_active
                 form(action=`/trip/${trip.id}/activate` method="POST")
-                  button(type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors") Make Active
-              a(href=`/trip/${trip.id}/add-riders` class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors") Add Existing Riders
-              a(href=`/trip/${trip.id}/roster` class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors" target="_blank") Export Roster
+                  button(type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Make Active
+              a(href=`/trip/${trip.id}/add-riders` class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Add Riders
+              a(href=`/trip/${trip.id}/roster` class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors" target="_blank") Export Roster
     else
       .text-center.text-white.py-8
         p No trips found. Please add a new trip to get started.

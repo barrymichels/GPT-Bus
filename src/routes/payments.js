@@ -77,9 +77,13 @@ function createPaymentRouter(db, emailService) {
                             amount,  // Pass the amount from request body
                             activeTrip.id
                         )
-                        .then(() => res.redirect(`/rider/${req.params.riderId}/payments`))
+                        .then(() => {
+                            req.flash('success', 'Payment added and receipt emailed');
+                            res.redirect(`/rider/${req.params.riderId}/payments`);
+                        })
                         .catch(err => {
                             console.error('Email error:', err);
+                            req.flash('warning', 'Payment added but email failed to send');
                             res.redirect(`/rider/${req.params.riderId}/payments`);
                         });
                     }
@@ -116,6 +120,7 @@ function createPaymentRouter(db, emailService) {
                     [req.params.paymentId],
                     (err, row) => {
                         if (err) throw err;
+                        req.flash('success', 'Payment updated');
                         res.redirect(`/rider/${row.rider_id}/payments`);
                     }
                 );
@@ -136,6 +141,7 @@ function createPaymentRouter(db, emailService) {
                     [req.params.paymentId],
                     (err) => {
                         if (err) throw err;
+                        req.flash('success', 'Payment deleted');
                         res.redirect(`/rider/${riderId}/payments`);
                     }
                 );

@@ -5,12 +5,15 @@ function createAuthRouter() {
     const router = express.Router();
 
     // Login page
-    router.get('/login', (req, res) => res.render('login'));
+    router.get('/login', (req, res) => {
+        const error = req.query.error === '1' ? 'Invalid username or password' : null;
+        res.render('login', { error });
+    });
 
     // Process login
     router.post('/login', passport.authenticate('local', {
         successRedirect: '/dashboard',
-        failureRedirect: '/login',
+        failureRedirect: '/login?error=1',
     }));
 
     // Logout

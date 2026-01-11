@@ -8,7 +8,11 @@ describe('Riders Routes', () => {
     beforeEach(() => {
         app = express();
         app.use(express.urlencoded({ extended: true }));
-        app.use((req, res, next) => { req.isAuthenticated = () => true; next(); });
+        app.use((req, res, next) => { 
+            req.isAuthenticated = () => true; 
+            req.flash = () => {}; // Mock flash
+            next(); 
+        });
 
         mockDb = {
             get: jest.fn((q, p, cb) => cb(null, { id: 1, name: 'Test Trip', cost_per_seat: 50 })),
@@ -145,10 +149,10 @@ describe('Riders Routes', () => {
     });
 
     describe('Delete Rider', () => {
-        it('should handle GET /riders/:id/delete with no payments', async () => {
+        it('should handle POST /riders/:id/delete with no payments', async () => {
             mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, { paymentCount: 0 }));
 
-            const response = await request(app).get('/riders/1/delete');
+            const response = await request(app).post('/riders/1/delete');
             expect(response.status).toBe(302);
             expect(mockDb.run).toHaveBeenCalledWith(
                 expect.stringContaining("DELETE FROM riders"),
@@ -160,7 +164,7 @@ describe('Riders Routes', () => {
         it('should prevent deletion if rider has payments', async () => {
             mockDb.get.mockImplementationOnce((q, p, cb) => cb(null, { paymentCount: 1 }));
 
-            const response = await request(app).get('/riders/1/delete');
+            const response = await request(app).post('/riders/1/delete');
             expect(response.status).toBe(302);
             expect(mockDb.run).not.toHaveBeenCalledWith(
                 expect.stringContaining("DELETE FROM riders"),
@@ -169,7 +173,7 @@ describe('Riders Routes', () => {
             );
         });
 
-        it('should handle GET /riders/:id/complete for complete deletion', async () => {
+        it('should handle POST /riders/:id/complete for complete deletion', async () => {
             // Mock to clear emergency contacts first
             mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
             // Mock to clear payments next
@@ -179,7 +183,7 @@ describe('Riders Routes', () => {
             // Mock to clear rider
             mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(null) : undefined);
 
-            const response = await request(app).get('/riders/1/complete');
+            const response = await request(app).post('/riders/1/complete');
             expect(response.status).toBe(302);
             expect(response.header.location).toBe('/dashboard');
             
@@ -209,7 +213,7 @@ describe('Riders Routes', () => {
         it('should handle database error in complete deletion', async () => {
             mockDb.run.mockImplementationOnce((q, p, cb) => typeof cb === 'function' ? cb(new Error('Database error')) : undefined);
 
-            const response = await request(app).get('/riders/1/complete');
+            const response = await request(app).post('/riders/1/complete');
             expect(response.status).toBe(500);
         });
     });

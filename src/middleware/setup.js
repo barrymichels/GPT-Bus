@@ -24,6 +24,25 @@ function setupMiddleware(app) {
     app.use(passport.initialize());
     app.use(passport.session());
 
+    // Flash message middleware (stores messages in session, clears after reading)
+    app.use((req, res, next) => {
+        // Initialize flash in session if not present
+        if (!req.session.flash) {
+            req.session.flash = {};
+        }
+        
+        // Helper to set flash message
+        req.flash = (type, message) => {
+            req.session.flash = { type, message };
+        };
+        
+        // Pass flash messages to all views and clear them
+        res.locals.flash = req.session.flash;
+        req.session.flash = {};
+        
+        next();
+    });
+
     // View engine and static files setup
     app.set("view engine", "pug");
     app.set("views", "./views");

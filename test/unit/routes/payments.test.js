@@ -10,9 +10,10 @@ describe('Payment Routes', () => {
         app.set('view engine', 'pug');
         app.use(express.urlencoded({ extended: true }));
 
-        // Bypass authentication middleware
+        // Bypass authentication middleware and add flash mock
         app.use((req, res, next) => {
             req.isAuthenticated = () => true;
+            req.flash = () => {}; // Mock flash
             next();
         });
 

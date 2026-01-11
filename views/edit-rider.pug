@@ -4,38 +4,38 @@ block content
   .container.mx-auto.px-4.py-8
     .max-w-2xl.mx-auto
       if activeTrip
-        h1.text-3xl.font-bold.text-white.mb-8 Editing Rider for #{activeTrip.name}
+        h1.text-2xl.font-bold.text-white.mb-8 Edit Rider: #{rider.name}
       else
-        h1.text-3xl.font-bold.text-white.mb-8 Edit Rider
+        h1.text-2xl.font-bold.text-white.mb-8 Edit Rider: #{rider.name}
       .bg-gray-700.p-6.rounded-lg.shadow-lg
         form(method='post', action='/edit-rider/' + rider.id, id="editRiderForm")
           // Basic Info
           .mb-4
-            label(for='name').block.text-sm.font-bold.mb-2.text-white Name
-            input#name(type='text', name='name', value=rider.name, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='name').block.text-sm.font-bold.mb-2.text-gray-300 Name
+            input#name(type='text', name='name', value=rider.name, required, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='congregation').block.text-sm.font-bold.mb-2.text-white Congregation
-            input#congregation(type='text', name='congregation', value=rider.congregation, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='congregation').block.text-sm.font-bold.mb-2.text-gray-300 Congregation
+            input#congregation(type='text', name='congregation', value=rider.congregation, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='email').block.text-sm.font-bold.mb-2.text-white Email
-            input#email(type='email', name='email', value=rider.email, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='email').block.text-sm.font-bold.mb-2.text-gray-300 Email
+            input#email(type='email', name='email', value=rider.email, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='phone').block.text-sm.font-bold.mb-2.text-white Mobile Phone
-            input#phone(type='tel', name='phone', value=rider.phone, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='phone').block.text-sm.font-bold.mb-2.text-gray-300 Mobile Phone
+            input#phone(type='tel', name='phone', value=rider.phone, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
 
           // Address
           .mb-4
-            label(for='street').block.text-sm.font-bold.mb-2.text-white Street Address
-            input#street(type='text', name='street', value=rider.street, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='street').block.text-sm.font-bold.mb-2.text-gray-300 Street Address
+            input#street(type='text', name='street', value=rider.street, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='city').block.text-sm.font-bold.mb-2.text-white City
-            input#city(type='text', name='city', value=rider.city, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='city').block.text-sm.font-bold.mb-2.text-gray-300 City
+            input#city(type='text', name='city', value=rider.city, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='state').block.text-sm.font-bold.mb-2.text-white State
-            input#state(type='text', name='state', value=rider.state, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='state').block.text-sm.font-bold.mb-2.text-gray-300 State
+            input#state(type='text', name='state', value=rider.state, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
           .mb-4
-            label(for='zip').block.text-sm.font-bold.mb-2.text-white Zip Code
-            input#zip(type='text', name='zip', value=rider.zip, class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")
+            label(for='zip').block.text-sm.font-bold.mb-2.text-gray-300 Zip Code
+            input#zip(type='text', name='zip', value=rider.zip, class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")
 
           if activeTrip
             // Trip-specific Info
@@ -50,38 +50,52 @@ block content
 
           // Notes
           .mb-4
-            label(for='notes').block.text-sm.font-bold.mb-2.text-white Notes
-            textarea#notes(name='notes', rows='3', class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline")= rider.notes
+            label(for='notes').block.text-sm.font-bold.mb-2.text-gray-300 Notes
+            textarea#notes(name='notes', rows='3', class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500")= rider.notes
 
           .flex.flex-wrap.gap-3.justify-end
             button(type='submit', class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Update Rider
             a#emergencyContactsLink(href=`/rider/${rider.id}/emergency-contacts`, class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Emergency Contacts
             a(href='/dashboard', class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Back
-            button(type='button', class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors", onclick="showDeleteModal()") Delete Rider
+            button#showDeleteBtn(type='button', class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Delete Rider
+
+  //- Hidden forms for delete operations (POST for security)
+  form#deleteFromTripForm(action=`/delete-rider/${rider.id}/from-trip` method="POST" style="display:none")
+  form#deleteCompletelyForm(action=`/delete-rider/${rider.id}/complete` method="POST" style="display:none")
 
   // Delete Confirmation Modal
-  #deleteModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center
+  #deleteModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center.z-50(
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="delete-modal-title"
+  )
     .bg-gray-800.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4
-      h3.text-xl.font-bold.text-white.mb-4 Delete Rider
+      h3#delete-modal-title.text-xl.font-bold.text-white.mb-4 Delete Rider
       p.text-gray-300.mb-6 How would you like to remove this rider?
       .space-y-4
-        button(onclick="deleteFromTrip()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded") Remove from Current Trip Only
-        button(onclick="deleteCompletely()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded") Delete Completely from System
-        button(onclick="hideDeleteModal()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded") Cancel
+        button#deleteFromTripBtn(type="button" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Remove from Current Trip Only
+        button#deleteCompletelyBtn(type="button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Delete Completely from System
+        button#cancelDeleteBtn(type="button" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Cancel
 
   // Unsaved Changes Modal
-  #unsavedModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center
+  #unsavedModal.fixed.inset-0.bg-gray-900.bg-opacity-50.hidden.flex.items-center.justify-center.z-50(
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="unsaved-modal-title"
+  )
     .bg-gray-800.p-6.rounded-lg.shadow-xl.max-w-md.w-full.mx-4
-      h3.text-xl.font-bold.text-white.mb-4 Unsaved Changes
+      h3#unsaved-modal-title.text-xl.font-bold.text-white.mb-4 Unsaved Changes
       p.text-gray-300.mb-6 You have unsaved changes. What would you like to do?
       .space-y-4
-        button#saveAndContinue(class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Save Changes and Continue
-        button#discardAndContinue(class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded") Discard Changes and Continue
-        button#cancelNavigation(class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded") Stay on This Page
+        button#saveAndContinue(type="button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Save Changes and Continue
+        button#discardAndContinue(type="button" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Discard Changes and Continue
+        button#cancelNavigation(type="button" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors") Stay on This Page
 
   script.
     let formChanged = false;
     let navigatingTo = '';
+    const deleteModal = document.getElementById('deleteModal');
+    const unsavedModal = document.getElementById('unsavedModal');
 
     // Track form changes
     document.getElementById('editRiderForm').addEventListener('input', () => {
@@ -91,7 +105,7 @@ block content
     // Handle Emergency Contacts link click
     document.getElementById('emergencyContactsLink').addEventListener('click', (e) => {
       e.preventDefault();
-      navigatingTo = e.target.href;
+      navigatingTo = e.target.href || e.target.closest('a').href;
       if (formChanged) {
         showUnsavedModal();
       } else {
@@ -99,16 +113,56 @@ block content
       }
     });
 
+    // Modal helper functions with focus trapping
+    function showModal(modal) {
+      modal.classList.remove('hidden');
+      const firstButton = modal.querySelector('button');
+      if (firstButton) firstButton.focus();
+      
+      // Trap focus within modal
+      modal.addEventListener('keydown', trapFocus);
+    }
+
+    function hideModal(modal) {
+      modal.classList.add('hidden');
+      modal.removeEventListener('keydown', trapFocus);
+    }
+
+    function trapFocus(e) {
+      if (e.key !== 'Tab') return;
+      
+      const modal = e.currentTarget;
+      const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
     function showUnsavedModal() {
-      document.getElementById('unsavedModal').classList.remove('hidden');
+      showModal(unsavedModal);
     }
 
     function hideUnsavedModal() {
-      document.getElementById('unsavedModal').classList.add('hidden');
+      hideModal(unsavedModal);
     }
 
+    function showDeleteModal() {
+      showModal(deleteModal);
+    }
+
+    function hideDeleteModal() {
+      hideModal(deleteModal);
+    }
+
+    // Unsaved modal buttons
     document.getElementById('saveAndContinue').addEventListener('click', () => {
-      // Submit the form with a redirect parameter
       const form = document.getElementById('editRiderForm');
       const input = document.createElement('input');
       input.type = 'hidden';
@@ -127,20 +181,32 @@ block content
       hideUnsavedModal();
     });
 
-    function showDeleteModal() {
-      document.getElementById('deleteModal').classList.remove('hidden');
-    }
+    // Delete modal buttons
+    document.getElementById('showDeleteBtn').addEventListener('click', showDeleteModal);
+    
+    document.getElementById('deleteFromTripBtn').addEventListener('click', () => {
+      document.getElementById('deleteFromTripForm').submit();
+    });
 
-    function hideDeleteModal() {
-      document.getElementById('deleteModal').classList.add('hidden');
-    }
-
-    function deleteFromTrip() {
-      window.location.href = `/delete-rider/#{rider.id}/from-trip`;
-    }
-
-    function deleteCompletely() {
+    document.getElementById('deleteCompletelyBtn').addEventListener('click', () => {
       if (confirm("Are you absolutely sure? This will permanently delete all rider data and cannot be undone.")) {
-        window.location.href = `/delete-rider/#{rider.id}/complete`;
+        document.getElementById('deleteCompletelyForm').submit();
       }
-    }
+    });
+
+    document.getElementById('cancelDeleteBtn').addEventListener('click', hideDeleteModal);
+
+    // Close modals on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!deleteModal.classList.contains('hidden')) hideDeleteModal();
+        if (!unsavedModal.classList.contains('hidden')) hideUnsavedModal();
+      }
+    });
+
+    // Close modals on backdrop click
+    [deleteModal, unsavedModal].forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) hideModal(modal);
+      });
+    });

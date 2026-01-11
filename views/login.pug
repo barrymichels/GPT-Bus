@@ -2,7 +2,7 @@ doctype html
 html(lang="en")
   head
     title Login
-    meta(name="viewport", content="width=device-width, initial-scale=1.0, user-scalable=no")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
     meta(name="theme-color", content="#111827")
     meta(name="description", content="Bus rental management login")
     link(rel="manifest", href="/manifest.json")
@@ -11,14 +11,20 @@ html(lang="en")
     meta(name="apple-mobile-web-app-title", content="Bus Rental")
     link(rel="apple-touch-icon", href="/icons/apple-touch-icon.png")
     link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css")
+    link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css")
   body(class="bg-gray-800 flex items-center justify-center h-screen")
-    form(method="POST" action="/login" class="bg-gray-700 shadow-lg rounded px-8 pt-6 pb-8 mb-4")
+    form(method="POST" action="/login" class="bg-gray-700 shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4 w-full max-w-sm")
+      h1.text-2xl.font-bold.text-white.text-center.mb-6 Bus Rental
+      if error
+        .bg-red-600.text-white.p-3.rounded-lg.mb-4.flex.items-center(role="alert")
+          i.fas.fa-exclamation-circle.mr-2
+          span= error
       div(class="mb-4")
         label(class="block text-white text-sm font-bold mb-2" for="username") Username
-        input(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" name="username" type="text" placeholder="Username")
+        input(class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="username" name="username" type="text" placeholder="Username" required)
       div(class="mb-6")
         label(class="block text-white text-sm font-bold mb-2" for="password") Password
-        input(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" id="password" name="password" type="password" placeholder="******************")
+        input(class="mt-1 block w-full bg-gray-600 border border-gray-500 rounded-lg shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="password" name="password" type="password" placeholder="******************" required)
       div(class="flex items-center justify-between")
-        button(class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit") Sign In
+        button(class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" type="submit") Sign In
     script(src="/js/pwa-register.js")

@@ -4,33 +4,37 @@ block content
   .container.mx-auto.px-4.py-8
     if activeTrip
       .flex.justify-between.items-center.mb-8
-        h1.text-2xl.font-bold.text-white Riders
+        h1.text-2xl.font-bold.text-white Riders for #{activeTrip.name}
         a(href="/add-rider" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors")
           i.fas.fa-plus.mr-2
           | Add Rider
 
       if riders && riders.length > 0
-        .bg-gray-900.rounded-lg.shadow-lg.overflow-hidden.mb-8
-          table.min-w-full
+        .bg-gray-900.rounded-lg.shadow-lg.overflow-hidden.mb-8(role="region" aria-label="Riders list")
+          table.min-w-full(aria-describedby="riders-caption")
+            caption#riders-caption.sr-only List of riders for #{activeTrip.name}
             thead
               tr.bg-gray-800.text-gray-300.text-left
-                th.py-3.px-4 Name
-                th(class="py-3 px-4 hidden md:table-cell") Collected
-                th(class="py-3 px-4 hidden md:table-cell") Balance Due
-                th(class="py-3 px-4 text-right hidden md:table-cell") Actions
+                th.py-3.px-4(scope="col") Name
+                th(class="py-3 px-4 hidden md:table-cell" scope="col") Collected
+                th(class="py-3 px-4 hidden md:table-cell" scope="col") Balance Due
+                th(class="py-3 px-4 text-right hidden md:table-cell" scope="col") Actions
             tbody
               each rider in riders
-                tr.border-t.border-gray-800.group
+                tr(class="border-t border-gray-800 group hover:bg-gray-800 transition-colors")
                   // Mobile: Entire row clickable
                   td(class="py-3 px-4 cursor-pointer md:cursor-default" onclick=`window.location.href='/edit-rider/${rider.id}'`)
                     .flex.items-center(class=rider.rider_cancelled ? "text-gray-500" : "text-white")
                       span= rider.name
                       if rider.instructions_sent
-                        i.fas.fa-check.text-green-500.ml-2
+                        i.fas.fa-check.text-green-500.ml-2(aria-hidden="true")
+                        span.sr-only Instructions sent
                       if rider.has_emergency_contacts
-                        i.fas.fa-ambulance.text-red-500.ml-2
+                        i.fas.fa-ambulance.text-red-500.ml-2(aria-hidden="true")
+                        span.sr-only Has emergency contacts
                       if rider.rider_cancelled
-                        i.fas.fa-times.text-red-700.ml-2
+                        i.fas.fa-times.text-red-700.ml-2(aria-hidden="true")
+                        span.sr-only Cancelled
                     if rider.congregation
                       .text-sm.text-gray-400= rider.congregation
                     // Mobile-only summary info

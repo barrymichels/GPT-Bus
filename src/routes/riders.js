@@ -51,6 +51,7 @@ function createRiderRouter(db) {
                             [activeTrip.id, riderId, 1, instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0],
                             (err) => {
                                 if (err) throw err;
+                                req.flash('success', 'Rider added successfully');
                                 res.redirect("/dashboard");
                             }
                         );
@@ -214,6 +215,7 @@ function createRiderRouter(db) {
                     [instructions_sent ? 1 : 0, rider_cancelled ? 1 : 0, req.params.id],
                     (err) => {
                         if (err) throw err;
+                        req.flash('success', 'Rider updated successfully');
                         // If redirect parameter is present, use it, otherwise go to dashboard
                         res.redirect(redirect || "/dashboard");
                     }
@@ -223,7 +225,7 @@ function createRiderRouter(db) {
     });
 
     // Remove rider from current trip only
-    router.get("/:id/from-trip", isAuthenticated, (req, res) => {
+    router.post("/:id/from-trip", isAuthenticated, (req, res) => {
         db.get("SELECT * FROM trips WHERE is_active = 1", [], (err, activeTrip) => {
             if (err) throw err;
             if (!activeTrip) return res.redirect("/dashboard");
@@ -233,14 +235,15 @@ function createRiderRouter(db) {
                 [req.params.id, activeTrip.id],
                 (err) => {
                     if (err) throw err;
+                    req.flash('success', 'Rider removed from trip');
                     res.redirect("/dashboard");
                 }
             );
         });
     });
 
-    // Delete rider completely
-    router.get("/:id/delete", isAuthenticated, (req, res) => {
+    // Delete rider completely (legacy route, kept for backward compatibility)
+    router.post("/:id/delete", isAuthenticated, (req, res) => {
         db.get(
             "SELECT COUNT(*) AS paymentCount FROM payments WHERE rider_id = ?",
             [req.params.id],
@@ -262,7 +265,7 @@ function createRiderRouter(db) {
     });
 
     // Complete deletion of rider (including emergency contacts)
-    router.get("/:id/complete", isAuthenticated, (req, res) => {
+    router.post("/:id/complete", isAuthenticated, (req, res) => {
         const riderId = req.params.id;
 
         // First delete emergency contacts
@@ -304,6 +307,7 @@ function createRiderRouter(db) {
                                             console.error("Error deleting rider:", err);
                                             return res.status(500).send("Database error occurred");
                                         }
+                                        req.flash('success', 'Rider deleted successfully');
                                         res.redirect("/dashboard");
                                     }
                                 );
@@ -442,6 +446,7 @@ function createRiderRouter(db) {
             }
         });
 
+        req.flash('success', 'Emergency contacts saved');
         res.redirect(`/edit-rider/${riderId}`);
     });
 
