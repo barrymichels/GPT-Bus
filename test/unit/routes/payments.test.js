@@ -241,9 +241,13 @@ describe('Payment Routes', () => {
             const testDate = '2024-02-11';
             const testAmount = '100.00';
 
+            const activeTrip = { id: 1, is_active: 1 };
             mockDb.get
                 .mockImplementationOnce((query, params, callback) => {
-                    callback(null, { id: 1, is_active: 1 }); // Active trip
+                    callback(null, activeTrip); // Active trip
+                })
+                .mockImplementationOnce((query, params, callback) => {
+                    callback(null, { id: 1, name: 'Test', email: 'test@test.com' }); // Rider
                 });
 
             const response = await request(app)
@@ -255,10 +259,9 @@ describe('Payment Routes', () => {
                 });
 
             expect(mockEmailService.sendReceiptEmail).toHaveBeenCalledWith(
-                '1',
-                testDate,
-                testAmount,
-                1
+                'test@test.com',
+                activeTrip,
+                testAmount
             );
             expect(response.status).toBe(302);
         });
