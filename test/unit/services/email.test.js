@@ -15,16 +15,16 @@ describe('Email Service', () => {
 
   describe('sendReceiptEmail', () => {
     const mockRecipient = 'test@example.com';
-    const mockTripDetails = {
-      id: 'TRIP123',
+    const mockReceiptDetails = {
+      riderName: 'John Doe',
       date: '2025-02-12',
-      route: 'Downtown Express'
+      amount: '25.50',
+      payments: [{ date: '2025-01-10', amount: '50.00' }]
     };
-    const mockPaymentAmount = 25.50;
 
     it('should successfully send a receipt email', async () => {
-      const result = await sendReceiptEmail(mockRecipient, mockTripDetails, mockPaymentAmount);
-      
+      const result = await sendReceiptEmail(mockRecipient, mockReceiptDetails);
+
       expect(result).toHaveProperty('messageId', 'test-message-id');
       expect(result.envelope).toEqual({
         from: config.EMAIL_USER,
@@ -33,31 +33,29 @@ describe('Email Service', () => {
     });
 
     it('should format email content correctly', async () => {
-      const spy = jest.spyOn(process.env.NODE_ENV === 'test' ? require('../../../src/services/email').testTransport : require('nodemailer'), 'sendMail');
-      
-      await sendReceiptEmail(mockRecipient, mockTripDetails, mockPaymentAmount);
-      
+      const spy = jest.spyOn(require('../../../src/services/email').testTransport, 'sendMail');
+
+      await sendReceiptEmail(mockRecipient, mockReceiptDetails);
+
       const mailOptions = spy.mock.calls[0][0];
-      expect(mailOptions).toEqual({
-        from: config.EMAIL_USER,
-        to: mockRecipient,
-        subject: 'Payment Receipt for Your Trip',
-        text: expect.stringContaining(mockTripDetails.id)
-      });
-      expect(mailOptions.text).toContain(mockTripDetails.date);
-      expect(mailOptions.text).toContain(mockTripDetails.route);
-      expect(mailOptions.text).toContain(mockPaymentAmount.toString());
+      expect(mailOptions.from).toBe(config.EMAIL_USER);
+      expect(mailOptions.to).toBe(mockRecipient);
+      expect(mailOptions.subject).toBe('Payment Receipt');
+      expect(mailOptions.html).toContain(mockReceiptDetails.riderName);
+      expect(mailOptions.html).toContain(mockReceiptDetails.date);
+      expect(mailOptions.html).toContain('$25.50');
+      expect(mailOptions.html).toContain('$50.00');
 
       spy.mockRestore();
     });
 
-    it('should handle missing trip details gracefully', async () => {
-      await expect(sendReceiptEmail(mockRecipient, null, mockPaymentAmount))
+    it('should handle missing receipt details gracefully', async () => {
+      await expect(sendReceiptEmail(mockRecipient, null))
         .rejects.toThrow();
     });
 
-    it('should throw error for invalid email', async () => {
-      await expect(sendReceiptEmail('invalid-email', mockTripDetails, mockPaymentAmount))
+    it('should send email for any recipient format', async () => {
+      await expect(sendReceiptEmail('invalid-email', mockReceiptDetails))
         .resolves.toHaveProperty('messageId');
     });
   });

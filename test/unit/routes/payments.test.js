@@ -44,6 +44,9 @@ describe('Payment Routes', () => {
                 .mockImplementationOnce((query, params, callback) => {
                     callback(null, { id: 1, name: 'Test', email: 'test@test.com' }); // Rider
                 });
+            mockDb.all.mockImplementationOnce((query, params, callback) => {
+                callback(null, []); // Prior payments
+            });
 
             const response = await request(app)
                 .post('/payments/add/1')
@@ -221,6 +224,9 @@ describe('Payment Routes', () => {
                 .mockImplementationOnce((query, params, callback) => {
                     callback(null, { id: 1, name: 'Test', email: 'test@test.com' });
                 });
+            mockDb.all.mockImplementationOnce((query, params, callback) => {
+                callback(null, []);
+            });
 
             mockEmailService.sendReceiptEmail.mockRejectedValue(new Error('Email error'));
 
@@ -240,15 +246,18 @@ describe('Payment Routes', () => {
         it('should format payment receipt correctly', async () => {
             const testDate = '2024-02-11';
             const testAmount = '100.00';
+            const priorPayments = [{ id: 1, date: '2024-01-15', amount: '50.00' }];
 
-            const activeTrip = { id: 1, is_active: 1 };
             mockDb.get
                 .mockImplementationOnce((query, params, callback) => {
-                    callback(null, activeTrip); // Active trip
+                    callback(null, { id: 1, is_active: 1 }); // Active trip
                 })
                 .mockImplementationOnce((query, params, callback) => {
                     callback(null, { id: 1, name: 'Test', email: 'test@test.com' }); // Rider
                 });
+            mockDb.all.mockImplementationOnce((query, params, callback) => {
+                callback(null, priorPayments); // Prior payments
+            });
 
             const response = await request(app)
                 .post('/payments/add/1')
@@ -260,8 +269,12 @@ describe('Payment Routes', () => {
 
             expect(mockEmailService.sendReceiptEmail).toHaveBeenCalledWith(
                 'test@test.com',
-                activeTrip,
-                testAmount
+                {
+                    riderName: 'Test',
+                    date: testDate,
+                    amount: testAmount,
+                    payments: priorPayments
+                }
             );
             expect(response.status).toBe(302);
         });

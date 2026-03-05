@@ -69,24 +69,35 @@ function createPaymentRouter(db, emailService) {
                             return res.status(500).send('Error creating payment');
                         }
 
-                        // Look up rider's email, then send receipt
-                        db.get("SELECT email FROM riders WHERE id = ?", [req.params.riderId], (err, rider) => {
+                        // Look up rider and payment history, then send receipt
+                        db.get("SELECT * FROM riders WHERE id = ?", [req.params.riderId], (err, rider) => {
                             if (err || !rider || !rider.email) {
                                 console.error('Could not retrieve rider email:', err);
                                 req.flash('warning', 'Payment added but could not send receipt email');
                                 return res.redirect(`/rider/${req.params.riderId}/payments`);
                             }
 
-                            emailService.sendReceiptEmail(rider.email, activeTrip, amount)
-                                .then(() => {
-                                    req.flash('success', 'Payment added and receipt emailed');
-                                    res.redirect(`/rider/${req.params.riderId}/payments`);
-                                })
-                                .catch(err => {
-                                    console.error('Email error:', err);
-                                    req.flash('warning', 'Payment added but email failed to send');
-                                    res.redirect(`/rider/${req.params.riderId}/payments`);
-                                });
+                            db.all(
+                                "SELECT p.* FROM payments p WHERE p.rider_id = ? AND p.trip_id = ? AND p.id != last_insert_rowid()",
+                                [req.params.riderId, activeTrip.id],
+                                (err, payments) => {
+                                    emailService.sendReceiptEmail(rider.email, {
+                                        riderName: rider.name,
+                                        date,
+                                        amount,
+                                        payments: err ? [] : payments
+                                    })
+                                    .then(() => {
+                                        req.flash('success', 'Payment added and receipt emailed');
+                                        res.redirect(`/rider/${req.params.riderId}/payments`);
+                                    })
+                                    .catch(err => {
+                                        console.error('Email error:', err);
+                                        req.flash('warning', 'Payment added but email failed to send');
+                                        res.redirect(`/rider/${req.params.riderId}/payments`);
+                                    });
+                                }
+                            );
                         });
                     }
                 );
